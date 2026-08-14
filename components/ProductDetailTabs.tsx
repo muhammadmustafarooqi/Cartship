@@ -69,6 +69,54 @@ function ratingBreakdown(reviews: Review[]) {
   }));
 }
 
+function FormattedDescription({ text }: { text: string }) {
+  if (!text) return null;
+  
+  // If it already contains HTML tags like <p>, <ul>, <br>, just render it as HTML
+  if (/<[a-z][\s\S]*>/i.test(text)) {
+    return <div className="pd-detail-tabs__prose" dangerouslySetInnerHTML={{ __html: text }} />;
+  }
+
+  // Pre-process common plain text patterns
+  // 1. Add newlines before "Product Features" or "Product Details"
+  let processed = text.replace(/(Product Features|Product Details|Key Features|Specifications):?/gi, '\n\n$1:\n');
+  
+  // 2. Replace " - " with a bullet point if it looks like a list item
+  processed = processed.replace(/\s+-\s+(?=[A-Z0-9\uD83C-\uDBFF\uDC00-\uDFFF])/g, '\n• ');
+
+  const lines = processed.split('\n');
+
+  return (
+    <div className="pd-detail-tabs__prose pd-detail-tabs__prose--formatted" style={{ whiteSpace: "pre-line" }}>
+      {lines.map((line, i) => {
+        const trimmed = line.trim();
+        if (!trimmed) return null;
+
+        // Check if it's a heading
+        if (trimmed.match(/^(Product Features|Product Details|Key Features|Specifications):?$/i)) {
+          return (
+            <h4 key={i} style={{ marginTop: "1.25em", marginBottom: "0.5em", color: "var(--text-primary)", fontWeight: 700, fontSize: "1.1rem" }}>
+              {trimmed.replace(/:$/, '')}
+            </h4>
+          );
+        }
+
+        // Check if it's a bullet point
+        if (trimmed.startsWith('•')) {
+          return (
+            <div key={i} style={{ display: "flex", gap: "8px", marginBottom: "0.4em", paddingLeft: "0.5em" }}>
+              <span style={{ color: "var(--color-brand)" }}>•</span>
+              <span style={{ flex: 1 }}>{trimmed.substring(1).trim()}</span>
+            </div>
+          );
+        }
+
+        return <p key={i} style={{ marginBottom: "0.75em" }}>{trimmed}</p>;
+      })}
+    </div>
+  );
+}
+
 export default function ProductDetailTabs({
   productId,
   description,
@@ -253,10 +301,7 @@ export default function ProductDetailTabs({
         {activeTab === "details" && (
           <div role="tabpanel" className="pd-detail-tabs__details-panel">
             {hasDescription ? (
-              <div
-                className="pd-detail-tabs__prose"
-                dangerouslySetInnerHTML={{ __html: description }}
-              />
+              <FormattedDescription text={description} />
             ) : (
               <div className="pd-detail-tabs__empty-details">
                 <FileText size={40} strokeWidth={1.25} />
