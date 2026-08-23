@@ -1,34 +1,43 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Minus } from "lucide-react";
 import Link from "next/link";
 
-const FAQS = [
-  {
-    question: "What is your return policy?",
-    answer: "We offer a 7-day hassle-free return policy for all unused products in their original packaging. Simply contact our support team to initiate a return.",
-  },
-  {
-    question: "Do you offer Cash on Delivery?",
-    answer: "Yes, we offer Cash on Delivery (COD) across Pakistan. You can inspect your package before handing over the payment to our delivery partners.",
-  },
-  {
-    question: "How long does shipping take?",
-    answer: "Standard shipping typically takes 2-4 business days for major cities, and up to 5-7 days for remote areas.",
-  },
-  {
-    question: "Are your products covered by warranty?",
-    answer: "All electronics and appliances come with a minimum 6-month brand warranty. Specific warranty details are listed on the individual product pages.",
-  },
-];
+interface FAQItem {
+  _id: string;
+  question: string;
+  answer: string;
+}
 
 export default function FAQ() {
+  const [faqs, setFaqs] = useState<FAQItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+
+  useEffect(() => {
+    const fetchFaqs = async () => {
+      try {
+        const response = await fetch('/api/faqs');
+        if (response.ok) {
+          const data = await response.json();
+          setFaqs(data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch FAQs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFaqs();
+  }, []);
 
   const toggle = (index: number) => {
     setOpenIndex(openIndex === index ? null : index);
   };
+
+  if (loading) return null;
 
   return (
     <section className="faq-section">
@@ -46,7 +55,7 @@ export default function FAQ() {
         </div>
 
         <div className="faq-list">
-          {FAQS.map((faq, index) => (
+          {faqs.map((faq, index) => (
             <div 
               key={index} 
               className={`faq-item ${openIndex === index ? "open" : ""}`}
