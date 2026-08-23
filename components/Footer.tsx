@@ -144,20 +144,31 @@ export default function Footer() {
           <p className="copyright">
             &copy; {new Date().getFullYear()} CartShip. All rights reserved.
           </p>
-          <div className="payment-methods">
-            {settings?.policies && settings.policies.length > 0 ? (
-              settings.policies.map((policy: any, idx: number) => (
-                <Link key={idx} href={policy.href} style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "0.85rem", marginRight: "16px", textDecoration: "none" }}>
-                  {policy.label}
-                </Link>
-              ))
-            ) : (
-              <>
-                <span className="payment-pill">COD</span>
-                <span className="payment-pill">Visa</span>
-                <span className="payment-pill">MasterCard</span>
-              </>
-            )}
+          <div className="footer-bottom-links">
+            {[
+              { label: "Privacy Policy", href: "/pages/privacy-policy" },
+              { label: "Terms of Service", href: "/pages/terms-of-service" },
+              { label: "Return & Refund Policy", href: "/pages/return-refund-policy" },
+              { label: "Contact Us", href: "/pages/contact-us" },
+              { label: "Shipping Policy", href: "/pages/shipping-policy" },
+              { label: "FAQ", href: "/faq" },
+              { label: "About Us", href: "/pages/about-us" },
+            ].map((link, idx) => (
+              <Link 
+                key={idx} 
+                href={link.href} 
+                style={{ 
+                  color: "rgba(255, 255, 255, 0.6)", 
+                  fontSize: "0.85rem", 
+                  textDecoration: "none",
+                  transition: "color 0.2s"
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.color = "var(--orange)")}
+                onMouseOut={(e) => (e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)")}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
       </div>
@@ -291,6 +302,13 @@ export default function Footer() {
           font-size: 0.85rem;
           color: rgba(255, 255, 255, 0.5);
           margin: 0;
+        }
+
+        .footer-bottom-links {
+          display: flex;
+          gap: 16px;
+          flex-wrap: wrap;
+          justify-content: center;
         }
 
         .payment-methods {
