@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import connectToDatabase from "@/lib/mongodb";
 import Page from "@/models/Page";
+import Settings from "@/models/Settings";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/AnnouncementBar";
@@ -304,16 +305,41 @@ export default async function CustomPage({
   let pageContent = "";
   let iconName = "file";
 
+  let storeName = "CartShip";
+  let rawWhatsapp = "923713869780";
+
   try {
     await connectToDatabase();
-    const pageDoc = await Page.findOne({ slug: normalizedSlug, isActive: true }).lean() as any;
+    const [pageDoc, settingsDoc] = await Promise.all([
+      Page.findOne({ slug: normalizedSlug, isActive: true }).lean() as any,
+      Settings.findOne().lean() as any,
+    ]);
+
+    if (settingsDoc) {
+      if (settingsDoc.storeName) storeName = settingsDoc.storeName;
+      if (settingsDoc.whatsappNumber) rawWhatsapp = settingsDoc.whatsappNumber;
+      else if (settingsDoc.footer?.contactPhone) rawWhatsapp = settingsDoc.footer.contactPhone;
+    }
+
     if (pageDoc && pageDoc.content && pageDoc.content.trim().length > 20) {
       pageTitle = pageDoc.title;
       pageContent = cleanContentHtml(pageDoc.content);
     }
   } catch (error) {
-    console.error("Error fetching custom page from database:", error);
+    console.error("Error fetching custom page / settings from database:", error);
   }
+
+  // Clean WhatsApp number
+  let cleanWaNumber = rawWhatsapp.replace(/\D/g, "");
+  if (cleanWaNumber.startsWith("0")) {
+    cleanWaNumber = "92" + cleanWaNumber.slice(1);
+  }
+  if (!cleanWaNumber) cleanWaNumber = "923713869780";
+
+  const waMessage = encodeURIComponent(
+    `Hi! I have a question regarding the ${pageTitle || "store policies"} on ${storeName}.`
+  );
+  const whatsappUrl = `https://wa.me/${cleanWaNumber}?text=${waMessage}`;
 
   // Use fallback if not found in DB or empty
   if (!pageContent && DEFAULT_PAGES[normalizedSlug]) {
@@ -403,7 +429,7 @@ export default async function CustomPage({
               </div>
               <div className="support-box-actions">
                 <a
-                  href="https://wa.me/923000000000"
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="support-btn-whatsapp"
