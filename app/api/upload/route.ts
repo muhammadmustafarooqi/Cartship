@@ -1,29 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { v2 as cloudinary } from "cloudinary";
 import { auth } from "@/lib/auth";
+import { getImageKit, getImageKitConfig } from "@/lib/imagekit";
 
-function getCloudinaryConfig() {
-  const cloud_name = process.env.CLOUDINARY_CLOUD_NAME?.trim();
-  const api_key = process.env.CLOUDINARY_API_KEY?.trim();
-  const api_secret = process.env.CLOUDINARY_API_SECRET?.trim();
-
-  if (!cloud_name || !api_key || !api_secret) return null;
-  if (
-    isPlaceholderCredential(cloud_name) ||
-    isPlaceholderCredential(api_key) ||
-    isPlaceholderCredential(api_secret)
-  ) {
-    return null;
-  }
-
-  return { cloud_name, api_key, api_secret };
-}
-
-function isPlaceholderCredential(value?: string) {
-  if (!value) return true;
-  const v = value.toLowerCase();
-  return v === "demo" || v === "your-cloud-name" || v === "your-api-key" || v === "your-api-secret";
-}
+export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -31,18 +10,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const config = getCloudinaryConfig();
+  const config = getImageKitConfig();
   if (!config) {
     return NextResponse.json(
       {
         error:
-          "Cloudinary is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in .env (get free keys at cloudinary.com/console).",
+          "ImageKit is not configured. Set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT in .env.local",
       },
       { status: 503 }
     );
   }
-
-  cloudinary.config(config);
 
   try {
     const formData = await request.formData();
@@ -55,34 +32,32 @@ export async function POST(request: NextRequest) {
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const base64 = buffer.toString("base64");
-    const dataUri = `data:${file.type};base64,${base64}`;
 
+    const imagekit = getImageKit();
     const isVideo = file.type.startsWith("video/");
-    const uploadOptions: any = {
-      folder: "cartship",
-      resource_type: isVideo ? "video" : "image",
-    };
+    const safeFileName = file.name ? file.name.replace(/[^a-zA-Z0-9.-]/g, "_") : `file_${Date.now()}`;
 
-    // Apply scaling transformations only to images
-    if (!isVideo) {
-      uploadOptions.transformation = [
-        { width: 800, height: 800, crop: "fill", gravity: "auto" },
-        { quality: "auto", fetch_format: "auto" },
-      ];
-    }
-
-    const result = await cloudinary.uploader.upload(dataUri, uploadOptions);
+    const result = await imagekit.upload({
+      file: base64,
+      fileName: safeFileName,
+      folder: isVideo ? "/cartship/videos" : "/cartship",
+      useUniqueFileName: true,
+      isPrivateFile: false,
+    });
 
     return NextResponse.json({
-      url: result.secure_url,
-      publicId: result.public_id,
+      url: result.url,
+      fileId: result.fileId,
+      publicId: result.fileId, // backwards compatibility
+      name: result.name,
+      filePath: result.filePath,
     });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("ImageKit upload error:", error);
     const message =
-      error instanceof Error && error.message.includes("api_key")
-        ? "Invalid Cloudinary API key. Update CLOUDINARY_* values in .env and restart the dev server."
-        : "Failed to upload file";
+      error instanceof Error
+        ? error.message
+        : "Failed to upload file to ImageKit";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
-import { uploadImageBuffer } from "@/lib/cloudinary";
+import { uploadImageBuffer } from "@/lib/imagekit";
 
 export const runtime = "nodejs";
 
@@ -63,7 +63,7 @@ export async function POST(
     return NextResponse.json({ url });
   } catch (error) {
     console.error("Review image upload error:", error);
-    if (error instanceof Error && error.message === "CLOUDINARY_NOT_CONFIGURED") {
+    if (error instanceof Error && error.message === "IMAGEKIT_NOT_CONFIGURED") {
       return NextResponse.json(
         {
           error:

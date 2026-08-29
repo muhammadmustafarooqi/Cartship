@@ -63,33 +63,25 @@ export default function AdminProductsPage() {
     const toastId = toast.loading("Uploading image(s)...");
 
     try {
-      const sigRes = await fetch("/api/upload/signature");
-      if (!sigRes.ok) throw new Error("Failed to get upload signature");
-      const { timestamp, signature, cloudName, apiKey, folder } = await sigRes.json();
-
       const uploadedUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("api_key", apiKey);
-        formData.append("timestamp", timestamp.toString());
-        formData.append("signature", signature);
-        formData.append("folder", folder);
 
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+        const res = await fetch("/api/upload", {
           method: "POST",
           body: formData,
         });
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error?.message || "Failed to upload");
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || "Failed to upload");
         }
 
         const data = await res.json();
-        if (data.secure_url) {
-          uploadedUrls.push(data.secure_url);
+        if (data.url) {
+          uploadedUrls.push(data.url);
         }
       }
 
@@ -120,30 +112,22 @@ export default function AdminProductsPage() {
     const toastId = toast.loading("Uploading video...");
 
     try {
-      const sigRes = await fetch("/api/upload/signature");
-      if (!sigRes.ok) throw new Error("Failed to get upload signature");
-      const { timestamp, signature, cloudName, apiKey, folder } = await sigRes.json();
-
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("api_key", apiKey);
-      formData.append("timestamp", timestamp.toString());
-      formData.append("signature", signature);
-      formData.append("folder", folder);
 
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+      const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error?.message || "Failed to upload video");
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to upload video");
       }
 
       const data = await res.json();
-      if (data.secure_url) {
-        setForm((f) => ({ ...f, previewVideoUrl: data.secure_url }));
+      if (data.url) {
+        setForm((f) => ({ ...f, previewVideoUrl: data.url }));
         toast.success("Video uploaded successfully!", { id: toastId });
       }
     } catch (err: any) {

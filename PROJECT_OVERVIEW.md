@@ -14,7 +14,7 @@ This document serves as the single source of truth for the **CartShip** (CartShi
   - **Database**: MongoDB (via Mongoose 9.6)
   - **Language**: TypeScript
   - **Authentication**: NextAuth.js (v5 Beta)
-  - **Media Management**: Cloudinary
+  - **Media Management**: ImageKit
 
 ---
 
@@ -86,7 +86,7 @@ All API routes live under `/app/api/`.
 | `/api/stats` & `[id]` | GET, POST, PUT, DELETE | Mixed | CRUD for store statistics. |
 | `/api/testimonials` & `[id]` | GET, POST, PUT, DELETE | Mixed | CRUD for customer testimonials. |
 | `/api/upload` | POST | Admin | General file upload handler. |
-| `/api/upload/signature` | GET | Admin | Generates Cloudinary signature for secure client-side uploads. |
+| `/api/upload/signature` | GET | Admin | Generates ImageKit authentication parameters for secure uploads. |
 | `/api/user/profile` | GET | Private | Fetch logged-in user profile. |
 | `/api/user/spin` & `spin-status` | POST, GET | Public | Handles Spin-to-Win discount logic. |
 
@@ -122,7 +122,7 @@ All API routes live under `/app/api/`.
 
 - **Meta (Facebook) Pixel**: Custom `MetaPixel.tsx` component tracking `PageView`, `ViewContent`, `AddToCart`, `AddToWishlist`, `Purchase`, `Search`, and `Contact`.
 - **Meta Conversions API (CAPI)**: Integrated directly into the `POST /api/orders` route to dispatch server-side `Purchase` events securely.
-- **Cloudinary**: Used for robust image storage and delivery (via API/Signature).
+- **ImageKit**: Used for robust image & video storage, optimization, and delivery.
 - **Google OAuth**: For easy user sign-ins via NextAuth.
 - **WhatsApp**: Floating action button natively tracking click intent via FB Pixel before redirecting to WhatsApp.
 
@@ -145,9 +145,9 @@ All API routes live under `/app/api/`.
 | `MONGODB_URI` | Connection string for the MongoDB cluster (Replica Set recommended). |
 | `NEXTAUTH_SECRET` | Secret key used to encrypt NextAuth session tokens. |
 | `NEXTAUTH_URL` | Base URL of the application for NextAuth redirects. |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary account identifier for media URLs. |
-| `CLOUDINARY_API_KEY` | Cloudinary public API key. |
-| `CLOUDINARY_API_SECRET` | Cloudinary private secret for authenticating uploads. |
+| `IMAGEKIT_PUBLIC_KEY` | ImageKit public key for client/server uploads. |
+| `IMAGEKIT_PRIVATE_KEY` | ImageKit private key for authenticating server uploads. |
+| `IMAGEKIT_URL_ENDPOINT` | ImageKit URL endpoint for delivering optimized media. |
 | `WHATSAPP_NUMBER` | Contact number used in the floating WhatsApp widget. |
 | `ADMIN_EMAIL` | Default admin email for the dashboard. |
 | `ADMIN_PASSWORD` | Default admin password for the dashboard. |

@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
 import ProductReview from "@/models/ProductReview";
-import { isAllowedReviewImageUrl } from "@/lib/cloudinary";
+import { isAllowedReviewImageUrl } from "@/lib/imagekit";
 
 export const runtime = "nodejs";
 
