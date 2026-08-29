@@ -87,15 +87,15 @@ export default function Footer() {
                   <li><Link href="/products?category=electronics">Electronics</Link></li>
                   <li><Link href="/products?category=kitchen">Kitchen</Link></li>
                   <li><Link href="/track-order">Track Order</Link></li>
-                  <li><Link href="/about">About Us</Link></li>
+                  <li><Link href="/pages/about-us">About Us</Link></li>
                 </ul>
               </div>
 
               <div className="footer-col">
                 <h3 className="footer-title">Customer Care</h3>
                 <ul className="footer-links">
-                  <li><Link href="/contact">Contact Us</Link></li>
-                  <li><Link href="/faq">FAQs</Link></li>
+                  <li><Link href="/pages/contact-us">Contact Us</Link></li>
+                  <li><Link href="/pages/faq">FAQs</Link></li>
                   {pages.length > 0 ? (
                     pages.map(page => (
                       <li key={page.slug}>
@@ -151,7 +151,7 @@ export default function Footer() {
               { label: "Return & Refund Policy", href: "/pages/return-refund-policy" },
               { label: "Contact Us", href: "/pages/contact-us" },
               { label: "Shipping Policy", href: "/pages/shipping-policy" },
-              { label: "FAQ", href: "/faq" },
+              { label: "FAQ", href: "/pages/faq" },
               { label: "About Us", href: "/pages/about-us" },
             ].map((link, idx) => (
               <Link 

@@ -28,6 +28,45 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/privacy-policy",
+        destination: "/pages/privacy-policy",
+        permanent: true,
+      },
+      {
+        source: "/terms-of-service",
+        destination: "/pages/terms-of-service",
+        permanent: true,
+      },
+      {
+        source: "/return-refund-policy",
+        destination: "/pages/return-refund-policy",
+        permanent: true,
+      },
+      {
+        source: "/shipping-policy",
+        destination: "/pages/shipping-policy",
+        permanent: true,
+      },
+      {
+        source: "/about",
+        destination: "/pages/about-us",
+        permanent: true,
+      },
+      {
+        source: "/contact",
+        destination: "/pages/contact-us",
+        permanent: true,
+      },
+      {
+        source: "/faq",
+        destination: "/pages/faq",
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     serverActions: {
       allowedOrigins: ["localhost:3000"],
