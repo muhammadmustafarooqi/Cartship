@@ -9,6 +9,7 @@ import WishlistProvider from "@/components/WishlistProvider";
 import MetaPixel from "@/components/MetaPixel";
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import AppSessionProvider from "@/components/AppSessionProvider";
+import StarterLoader from "@/components/StarterLoader";
 import SocialSidebar from "@/components/SocialSidebar";
 import DynamicFavicon from "@/components/DynamicFavicon";
 import { FAVICON_URL } from "@/lib/site";
@@ -83,6 +84,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" suppressHydrationWarning className={`${jakarta.variable} ${outfit.variable}`}>
       <body className={jakarta.className} suppressHydrationWarning>
+        <StarterLoader />
         <AppSessionProvider>
           <CartProvider>
             <WishlistProvider>
