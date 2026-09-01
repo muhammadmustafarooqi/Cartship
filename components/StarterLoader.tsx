@@ -59,8 +59,8 @@ export default function StarterLoader() {
     }
   }, [progress]);
 
-  // NEVER render on server to prevent unstyled text in SSR HTML stream
-  if (!mounted || isFinished) return null;
+  // Only unmount when exit animation has completely finished
+  if (isFinished) return null;
 
   return (
     <>
