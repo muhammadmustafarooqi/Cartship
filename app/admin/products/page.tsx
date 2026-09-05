@@ -44,6 +44,7 @@ const EMPTY_PRODUCT = {
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categoriesList, setCategoriesList] = useState<Array<{ name: string; slug: string }>>(PRODUCT_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -54,6 +55,17 @@ export default function AdminProductsPage() {
   const [colorInput, setColorInput] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/categories?includeInactive=true")
+      .then(res => res.json())
+      .then(data => {
+        if (data.categories && data.categories.length > 0) {
+          setCategoriesList(data.categories.map((c: any) => ({ name: c.name, slug: c.slug })));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -422,7 +434,7 @@ export default function AdminProductsPage() {
                   <label>Category *</label>
                   <select value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} required>
                     <option value="">Select Category</option>
-                    {PRODUCT_CATEGORIES.map((cat) => (
+                    {categoriesList.map((cat) => (
                       <option key={cat.slug} value={cat.slug}>{cat.name}</option>
                     ))}
                   </select>

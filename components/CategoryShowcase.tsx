@@ -73,7 +73,7 @@ export default function CategoryShowcase() {
         if (res.ok) {
           const data = await res.json();
           if (data.categories && data.categories.length > 0) {
-            setCategories(data.categories.slice(0, 6));
+            setCategories(data.categories.slice(0, 12));
           }
         }
       } catch (error) {

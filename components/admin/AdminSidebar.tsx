@@ -32,6 +32,7 @@ const navItems = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
   { label: "Analytics", href: "/admin/analytics", icon: TrendingUp },
   { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Categories", href: "/admin/settings/categories", icon: FolderTree },
   { label: "Orders", href: "/admin/orders", icon: ShoppingBag },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Spin Results", href: "/admin/spins", icon: Sparkles },
