@@ -6,7 +6,7 @@ import { useSettings } from "@/lib/useSettings";
 import { LOGO_URL } from "@/lib/site";
 
 export default function StarterLoader() {
-  const [mounted, setMounted] = useState(false);
+  const [shouldShow, setShouldShow] = useState<boolean | null>(null);
   const [progress, setProgress] = useState(0);
   const [isOpening, setIsOpening] = useState(false);
   const [isFinished, setIsFinished] = useState(false);
@@ -16,7 +16,18 @@ export default function StarterLoader() {
   const storeName = settings?.storeName || "CartShip";
 
   useEffect(() => {
-    setMounted(true);
+    try {
+      const hasSeen = sessionStorage.getItem("hasSeenStarterLoader");
+      if (hasSeen === "true") {
+        setShouldShow(false);
+        return;
+      }
+      sessionStorage.setItem("hasSeenStarterLoader", "true");
+    } catch {
+      // Ignore if sessionStorage is not accessible
+    }
+
+    setShouldShow(true);
     document.body.style.overflow = "hidden";
 
     // Counter animation over 1100ms
@@ -59,8 +70,8 @@ export default function StarterLoader() {
     }
   }, [progress]);
 
-  // Only unmount when exit animation has completely finished
-  if (isFinished) return null;
+  // Don't render if already shown in this session or if loading state hasn't resolved
+  if (shouldShow === false || shouldShow === null || isFinished) return null;
 
   return (
     <>
