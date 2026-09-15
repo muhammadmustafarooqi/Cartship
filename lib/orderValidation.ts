@@ -7,6 +7,7 @@ export interface CartItemInput {
   name?: string;
   quantity: number;
   image?: string;
+  selectedColor?: string;
 }
 
 export interface ValidatedOrderItem {
@@ -16,6 +17,7 @@ export interface ValidatedOrderItem {
   price: number;
   quantity: number;
   image: string;
+  selectedColor?: string;
 }
 
 export async function validateAndPriceOrderItems(items: CartItemInput[], session: mongoose.ClientSession) {
@@ -91,6 +93,7 @@ export async function validateAndPriceOrderItems(items: CartItemInput[], session
       price: finalPrice,
       quantity,
       image: item.image || (product.images && product.images[0]) || "",
+      selectedColor: item.selectedColor || "",
     });
   }
 

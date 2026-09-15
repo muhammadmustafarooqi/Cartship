@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Plus, Trash2, Edit, X, Upload, GripVertical } from "lucide-react";
 import toast from "react-hot-toast";
+import { uploadToImageKit } from "@/lib/uploadClient";
 
 interface Banner {
   _id: string;
@@ -91,22 +92,12 @@ export default function AdminBannersPage() {
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!res.ok) throw new Error();
-      
-      const data = await res.json();
+      const data = await uploadToImageKit(file, { folder: "/cartship/banners" });
       setForm((f) => ({ ...f, image: data.url }));
       toast.success("Image uploaded!");
-    } catch {
-      toast.error("Failed to upload image");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload image");
     } finally {
       setUploading(false);
     }

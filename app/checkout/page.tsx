@@ -262,6 +262,7 @@ export default function CheckoutPage() {
           price: i.price, 
           quantity: i.quantity, 
           image: i.image,
+          selectedColor: i.selectedColor,
           selectedBundleItems: i.selectedBundleItems 
         })), 
         subtotal, 
@@ -390,6 +391,13 @@ export default function CheckoutPage() {
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "14px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.3, marginBottom: "4px", fontFamily: "Outfit, sans-serif" }}>{item.name}</div>
+                      {item.selectedColor && (
+                        <div style={{ marginBottom: "4px" }}>
+                          <span style={{ display: "inline-block", background: "var(--cream-dark)", border: "1px solid var(--border-default)", padding: "1px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 600, color: "var(--slate)" }}>
+                            Color: {item.selectedColor}
+                          </span>
+                        </div>
+                      )}
                       <div style={{ fontSize: "14px", color: "var(--text-secondary)", fontWeight: 600 }}>Rs. {(item.price * item.quantity).toLocaleString()}</div>
                       {item.selectedBundleItems && item.selectedBundleItems.length > 0 && (
                         <div style={{ marginTop: "6px", display: "flex", flexDirection: "column", gap: "2px" }}>

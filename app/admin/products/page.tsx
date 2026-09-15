@@ -2,9 +2,16 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, Upload, Package, Star, Sparkles, Eye } from "lucide-react";
+import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, Upload, Package, Star, Sparkles, Eye, FileText } from "lucide-react";
 import { PRODUCT_CATEGORIES, PRODUCT_COLORS } from "@/lib/utils";
 import toast from "react-hot-toast";
+import { useDraft } from "@/lib/useDraft";
+import { uploadToImageKit } from "@/lib/uploadClient";
+
+interface ColorVariant {
+  color: string;
+  images: string[];
+}
 
 interface Product {
   _id: string;
@@ -23,6 +30,7 @@ interface Product {
   shortDescription: string;
   tags: string[];
   colors: string[];
+  colorVariants?: ColorVariant[];
 }
 
 const EMPTY_PRODUCT = {
@@ -40,6 +48,7 @@ const EMPTY_PRODUCT = {
   shortDescription: "",
   tags: [] as string[],
   colors: [] as string[],
+  colorVariants: [] as ColorVariant[],
 };
 
 export default function AdminProductsPage() {
@@ -55,6 +64,41 @@ export default function AdminProductsPage() {
   const [colorInput, setColorInput] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [uploadingColor, setUploadingColor] = useState<string | null>(null);
+  const [colorImageUrlMap, setColorImageUrlMap] = useState<Record<string, string>>({});
+  const [persistedNewDraft, setPersistedNewDraft] = useState<{ data: typeof EMPTY_PRODUCT; savedAt: string } | null>(null);
+
+  const draftKey = editingProduct
+    ? `cartship_admin_draft_product_edit_${editingProduct._id}`
+    : "cartship_admin_draft_product_new";
+
+  const isFormDirty = Boolean(
+    form.name.trim() ||
+    form.description.trim() ||
+    form.shortDescription.trim() ||
+    form.price > 0 ||
+    form.images.length > 0 ||
+    form.previewVideoUrl.trim() ||
+    form.colors.length > 0 ||
+    (form.colorVariants && form.colorVariants.length > 0)
+  );
+
+  const { lastSavedText, clearDraft } = useDraft(draftKey, form, {
+    enabled: showForm && isFormDirty,
+  });
+
+  // Check on mount for any unsaved new product draft
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("cartship_admin_draft_product_new");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.data?.name?.trim() || parsed?.data?.description?.trim() || parsed?.data?.price > 0) {
+          setPersistedNewDraft(parsed);
+        }
+      }
+    } catch {}
+  }, []);
 
   useEffect(() => {
     fetch("/api/categories?includeInactive=true")
@@ -78,20 +122,7 @@ export default function AdminProductsPage() {
       const uploadedUrls: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const res = await fetch("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || "Failed to upload");
-        }
-
-        const data = await res.json();
+        const data = await uploadToImageKit(file, { folder: "/cartship" });
         if (data.url) {
           uploadedUrls.push(data.url);
         }
@@ -120,30 +151,26 @@ export default function AdminProductsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Client-side file size check (100MB max)
+    const maxMb = 100;
+    if (file.size > maxMb * 1024 * 1024) {
+      toast.error(`Video file is too large (max ${maxMb}MB)`);
+      e.target.value = "";
+      return;
+    }
+
     setUploadingVideo(true);
-    const toastId = toast.loading("Uploading video...");
+    const fileSizeMb = (file.size / (1024 * 1024)).toFixed(1);
+    const toastId = toast.loading(`Uploading video (${fileSizeMb}MB)...`);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || "Failed to upload video");
-      }
-
-      const data = await res.json();
+      const data = await uploadToImageKit(file, { folder: "/cartship/videos" });
       if (data.url) {
         setForm((f) => ({ ...f, previewVideoUrl: data.url }));
         toast.success("Video uploaded successfully!", { id: toastId });
       }
     } catch (err: any) {
-      console.error(err);
+      console.error("Video upload error:", err);
       toast.error(err.message || "Failed to upload video", { id: toastId });
     } finally {
       setUploadingVideo(false);
@@ -170,13 +197,23 @@ export default function AdminProductsPage() {
 
   const openAddForm = () => {
     setEditingProduct(null);
-    setForm(EMPTY_PRODUCT);
+    if (persistedNewDraft) {
+      setForm(persistedNewDraft.data);
+      toast.success("Restored your unsaved draft!");
+    } else {
+      setForm(EMPTY_PRODUCT);
+    }
     setShowForm(true);
   };
 
   const openEditForm = (product: Product) => {
     setEditingProduct(product);
-    setForm({
+    const existingVariants: ColorVariant[] =
+      product.colorVariants && product.colorVariants.length > 0
+        ? product.colorVariants
+        : (product.colors || []).map((c) => ({ color: c, images: [] }));
+
+    let initialForm = {
       name: product.name,
       price: product.price,
       comparePrice: product.comparePrice || 0,
@@ -191,7 +228,23 @@ export default function AdminProductsPage() {
       shortDescription: product.shortDescription || "",
       tags: product.tags || [],
       colors: product.colors || [],
-    });
+      colorVariants: existingVariants,
+    };
+
+    // Check if there was an unsaved edit draft for this product
+    try {
+      const editDraftKey = `cartship_admin_draft_product_edit_${product._id}`;
+      const saved = localStorage.getItem(editDraftKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.data) {
+          initialForm = { ...initialForm, ...parsed.data };
+          toast.success("Restored unsaved draft edits for this product!");
+        }
+      }
+    } catch {}
+
+    setForm(initialForm);
     setShowForm(true);
   };
 
@@ -213,11 +266,102 @@ export default function AdminProductsPage() {
     }
   };
 
-  const handleAddColor = () => {
-    if (colorInput.trim() && !form.colors.includes(colorInput.trim())) {
-      setForm((f) => ({ ...f, colors: [...f.colors, colorInput.trim()] }));
-      setColorInput("");
+  const handleAddColor = (newColor?: string) => {
+    const col = (newColor || colorInput).trim();
+    if (!col) return;
+
+    setForm((f) => {
+      const existsInColors = f.colors.some((c) => c.toLowerCase() === col.toLowerCase());
+      const nextColors = existsInColors ? f.colors : [...f.colors, col];
+
+      const existsInVariants = (f.colorVariants || []).some(
+        (cv) => cv.color.toLowerCase() === col.toLowerCase()
+      );
+      const nextVariants = existsInVariants
+        ? f.colorVariants
+        : [...(f.colorVariants || []), { color: col, images: [] }];
+
+      return {
+        ...f,
+        colors: nextColors,
+        colorVariants: nextVariants,
+      };
+    });
+    setColorInput("");
+  };
+
+  const handleRemoveColor = (colorToRemove: string) => {
+    setForm((f) => ({
+      ...f,
+      colors: f.colors.filter((c) => c.toLowerCase() !== colorToRemove.toLowerCase()),
+      colorVariants: (f.colorVariants || []).filter(
+        (cv) => cv.color.toLowerCase() !== colorToRemove.toLowerCase()
+      ),
+    }));
+  };
+
+  const handleColorImageUpload = async (color: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadingColor(color);
+    const toastId = toast.loading(`Uploading image(s) for ${color}...`);
+
+    try {
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const data = await uploadToImageKit(file, { folder: "/cartship/colors" });
+        if (data.url) {
+          uploadedUrls.push(data.url);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setForm((f) => ({
+          ...f,
+          colorVariants: (f.colorVariants || []).map((cv) =>
+            cv.color.toLowerCase() === color.toLowerCase()
+              ? { ...cv, images: [...cv.images, ...uploadedUrls] }
+              : cv
+          ),
+        }));
+        toast.success(`Uploaded ${uploadedUrls.length} image(s) for ${color}!`, { id: toastId });
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to upload image", { id: toastId });
+    } finally {
+      setUploadingColor(null);
+      e.target.value = "";
     }
+  };
+
+  const handleAddColorImageUrl = (color: string) => {
+    const url = (colorImageUrlMap[color] || "").trim();
+    if (!url) return;
+
+    setForm((f) => ({
+      ...f,
+      colorVariants: (f.colorVariants || []).map((cv) =>
+        cv.color.toLowerCase() === color.toLowerCase() && !cv.images.includes(url)
+          ? { ...cv, images: [...cv.images, url] }
+          : cv
+      ),
+    }));
+
+    setColorImageUrlMap((prev) => ({ ...prev, [color]: "" }));
+  };
+
+  const handleRemoveColorImage = (color: string, imgUrl: string) => {
+    setForm((f) => ({
+      ...f,
+      colorVariants: (f.colorVariants || []).map((cv) =>
+        cv.color.toLowerCase() === color.toLowerCase()
+          ? { ...cv, images: cv.images.filter((i) => i !== imgUrl) }
+          : cv
+      ),
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,12 +371,24 @@ export default function AdminProductsPage() {
       return;
     }
     setSubmitting(true);
+
+    const submitPayload = {
+      ...form,
+      colors: Array.from(
+        new Set([
+          ...form.colors,
+          ...(form.colorVariants || []).map((cv) => cv.color),
+        ])
+      ).filter(Boolean),
+      colorVariants: form.colorVariants || [],
+    };
+
     try {
       if (editingProduct) {
         const res = await fetch(`/api/products/${editingProduct._id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(submitPayload),
         });
         if (!res.ok) throw new Error("Failed to update");
         toast.success("Product updated!");
@@ -240,11 +396,21 @@ export default function AdminProductsPage() {
         const res = await fetch("/api/products", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(submitPayload),
         });
         if (!res.ok) throw new Error("Failed to create");
         toast.success("Product created!");
       }
+
+      // Purge draft from local storage upon successful save
+      if (editingProduct) {
+        localStorage.removeItem(`cartship_admin_draft_product_edit_${editingProduct._id}`);
+      } else {
+        localStorage.removeItem("cartship_admin_draft_product_new");
+        setPersistedNewDraft(null);
+      }
+      clearDraft();
+
       setShowForm(false);
       fetchProducts();
     } catch (err) {
@@ -298,6 +464,20 @@ export default function AdminProductsPage() {
       <td>
         <div style={{ fontWeight: 600, fontSize: "13px", maxWidth: "200px" }}>{product.name}</div>
         <div style={{ fontSize: "11px", color: "#9ca3af" }}>{product.slug}</div>
+        {((product.colors && product.colors.length > 0) || (product.colorVariants && product.colorVariants.length > 0)) && (
+          <div style={{ display: "flex", gap: "4px", flexWrap: "wrap", marginTop: "4px" }}>
+            {(product.colors || product.colorVariants?.map(c => c.color) || []).slice(0, 3).map((col) => (
+              <span key={col} style={{ fontSize: "10px", background: "#f3f4f6", color: "#4b5563", padding: "1px 6px", borderRadius: "4px", fontWeight: 500 }}>
+                {col}
+              </span>
+            ))}
+            {((product.colors?.length || product.colorVariants?.length || 0) > 3) && (
+              <span style={{ fontSize: "10px", color: "#9ca3af" }}>
+                +{((product.colors?.length || product.colorVariants?.length || 0) - 3)}
+              </span>
+            )}
+          </div>
+        )}
       </td>
       <td style={{ fontSize: "13px" }}>{product.category}</td>
       <td>
@@ -373,6 +553,80 @@ export default function AdminProductsPage() {
 
   return (
     <div className="admin-page-container">
+      {persistedNewDraft && !showForm && (
+        <div style={{
+          background: "linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%)",
+          border: "1px solid #fed7aa",
+          borderRadius: "14px",
+          padding: "16px 20px",
+          marginBottom: "24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "12px",
+          boxShadow: "0 2px 10px rgba(255, 97, 2, 0.08)"
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--orange)", color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <FileText size={18} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, color: "#9a3412", fontSize: "15px" }}>
+                Unsaved Product Draft Found
+              </div>
+              <div style={{ fontSize: "13px", color: "#c2410c" }}>
+                &ldquo;{persistedNewDraft.data.name || "Untitled Product"}&rdquo; was automatically saved from your previous session.
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingProduct(null);
+                setForm(persistedNewDraft.data);
+                setShowForm(true);
+                toast.success("Draft restored!");
+              }}
+              style={{
+                background: "var(--orange)",
+                color: "white",
+                border: "none",
+                borderRadius: "8px",
+                padding: "8px 16px",
+                fontWeight: 700,
+                fontSize: "13px",
+                cursor: "pointer"
+              }}
+            >
+              Resume Editing
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                localStorage.removeItem("cartship_admin_draft_product_new");
+                setPersistedNewDraft(null);
+                clearDraft();
+                toast("Draft discarded", { icon: "🗑️" });
+              }}
+              style={{
+                background: "white",
+                color: "#6b7280",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                padding: "8px 14px",
+                fontWeight: 600,
+                fontSize: "13px",
+                cursor: "pointer"
+              }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "28px", flexWrap: "wrap", gap: "16px" }}>
         <div>
           <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1f2937" }}>Products</h1>
@@ -415,13 +669,53 @@ export default function AdminProductsPage() {
       {showForm && (
         <div className="admin-form-modal" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "32px 16px" }}>
           <div className="admin-form-content" style={{ background: "white", borderRadius: "20px", padding: "32px", width: "100%", maxWidth: "700px", position: "relative" }}>
-            <button onClick={() => setShowForm(false)} style={{ position: "absolute", top: "16px", right: "16px", background: "#f3f4f6", border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <X size={16} />
-            </button>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+              <div>
+                <h2 style={{ fontSize: "22px", fontWeight: 800, color: "#1f2937", margin: 0 }}>
+                  {editingProduct ? "Edit Product" : "Add New Product"}
+                </h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "6px" }}>
+                  <span style={{ fontSize: "12px", color: "#10b981", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                    <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: "#10b981" }}></span>
+                    {lastSavedText || "Draft auto-saving enabled"}
+                  </span>
+                  {isFormDirty && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (confirm("Are you sure you want to discard this draft and reset the form?")) {
+                          if (editingProduct) {
+                            localStorage.removeItem(`cartship_admin_draft_product_edit_${editingProduct._id}`);
+                          } else {
+                            localStorage.removeItem("cartship_admin_draft_product_new");
+                            setPersistedNewDraft(null);
+                          }
+                          clearDraft();
+                          setForm(EMPTY_PRODUCT);
+                          setShowForm(false);
+                          toast("Draft discarded", { icon: "🗑️" });
+                        }
+                      }}
+                      style={{
+                        fontSize: "12px",
+                        color: "#ef4444",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: 0
+                      }}
+                    >
+                      Discard Draft
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button onClick={() => setShowForm(false)} style={{ background: "#f3f4f6", border: "none", borderRadius: "50%", width: "32px", height: "32px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <X size={16} />
+              </button>
+            </div>
 
-            <h2 style={{ fontSize: "20px", fontWeight: 700, marginBottom: "24px", color: "#1f2937" }}>
-              {editingProduct ? "Edit Product" : "Add New Product"}
-            </h2>
 
             <form onSubmit={handleSubmit} className="admin-product-form">
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
@@ -623,43 +917,238 @@ export default function AdminProductsPage() {
                   )}
                 </div>
 
-                {/* Colors */}
+                {/* Colors & Per-Color Dedicated Pictures */}
                 <div className="form-group" style={{ gridColumn: "1/-1" }}>
-                  <label>Available Colors</label>
-                  <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                    <select 
-                      value="" 
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                    <div>
+                      <label style={{ fontWeight: 700, fontSize: "14px", color: "#111827", marginBottom: "2px", display: "block" }}>
+                        Color Options &amp; Dedicated Pictures
+                      </label>
+                      <span style={{ fontSize: "12px", color: "#6b7280" }}>
+                        Add product colors and upload specific photos for each color (automatically switches when customer picks a color)
+                      </span>
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#ff6b00", fontWeight: 700 }}>
+                      {form.colorVariants?.length || 0} color variant{form.colorVariants?.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+
+                  {/* Add color input bar */}
+                  <div style={{ display: "flex", gap: "10px", marginBottom: "16px", background: "#f9fafb", padding: "12px", borderRadius: "10px", border: "1.5px solid #e5e7eb", flexWrap: "wrap" }}>
+                    <select
+                      value=""
                       onChange={(e) => {
-                        if (e.target.value && !form.colors.includes(e.target.value)) {
-                          setForm((f) => ({ ...f, colors: [...f.colors, e.target.value] }));
+                        if (e.target.value) {
+                          handleAddColor(e.target.value);
                         }
                       }}
-                      style={{ flex: 1, padding: "10px 14px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px", cursor: "pointer" }}
+                      style={{ flex: "1 1 200px", padding: "10px 14px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", background: "white" }}
                     >
-                      <option value="">Select a color to add</option>
-                      {PRODUCT_COLORS.map((color) => (
-                        <option key={color} value={color} disabled={form.colors.includes(color)}>{color}</option>
-                      ))}
+                      <option value="">Select a standard color...</option>
+                      {PRODUCT_COLORS.map((c) => {
+                        const alreadyAdded = (form.colorVariants || []).some(cv => cv.color.toLowerCase() === c.toLowerCase());
+                        return (
+                          <option key={c} value={c} disabled={alreadyAdded}>
+                            {c} {alreadyAdded ? "(Already added)" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
-                    <input 
-                      value={colorInput} 
-                      onChange={(e) => setColorInput(e.target.value)} 
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), handleAddColor())} 
-                      placeholder="Or type custom color" 
-                      style={{ flex: 1, padding: "10px 14px", border: "2px solid #e5e7eb", borderRadius: "8px", fontSize: "14px" }} 
-                    />
-                    <button type="button" onClick={handleAddColor} className="btn-secondary" style={{ padding: "10px 14px" }}>Add</button>
+
+                    <div style={{ display: "flex", gap: "8px", flex: "1 1 240px" }}>
+                      <input
+                        type="text"
+                        value={colorInput}
+                        onChange={(e) => setColorInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddColor(); } }}
+                        placeholder="Or type custom color (e.g. Navy Blue)..."
+                        style={{ flex: 1, padding: "10px 14px", border: "1.5px solid #d1d5db", borderRadius: "8px", fontSize: "14px", background: "white" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddColor()}
+                        className="btn-secondary"
+                        style={{ padding: "10px 16px", whiteSpace: "nowrap", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                      >
+                        <Plus size={16} /> Add Color
+                      </button>
+                    </div>
                   </div>
-                  {form.colors.length > 0 && (
-                    <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                      {form.colors.map((color) => (
-                        <span key={color} style={{ background: "#e0e7ff", color: "#4338ca", padding: "6px 12px", borderRadius: "20px", fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                          {color}
-                          <button type="button" onClick={() => setForm((f) => ({ ...f, colors: f.colors.filter((c) => c !== color) }))} style={{ background: "none", border: "none", cursor: "pointer", color: "#4338ca", display: "flex" }}>
-                            <X size={10} />
-                          </button>
-                        </span>
-                      ))}
+
+                  {/* Color Variant Cards */}
+                  {(!form.colorVariants || form.colorVariants.length === 0) ? (
+                    <div style={{ padding: "24px", textAlign: "center", background: "#f9fafb", border: "1.5px dashed #e5e7eb", borderRadius: "12px", color: "#6b7280", fontSize: "13px" }}>
+                      No color options added yet. Select or type a color above to upload color-specific photos.
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                      {form.colorVariants.map((variant) => {
+                        const isUploadingThisColor = uploadingColor === variant.color;
+                        const urlValue = colorImageUrlMap[variant.color] || "";
+
+                        return (
+                          <div
+                            key={variant.color}
+                            style={{
+                              background: "white",
+                              border: "1.5px solid #e5e7eb",
+                              borderRadius: "12px",
+                              padding: "16px",
+                              boxShadow: "0 1px 3px rgba(0,0,0,0.04)"
+                            }}
+                          >
+                            {/* Header row */}
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <span
+                                  style={{
+                                    width: "20px",
+                                    height: "20px",
+                                    borderRadius: "50%",
+                                    background: variant.color.toLowerCase(),
+                                    border: "1.5px solid #d1d5db",
+                                    display: "inline-block",
+                                    boxShadow: "inset 0 1px 2px rgba(0,0,0,0.15)"
+                                  }}
+                                />
+                                <span style={{ fontWeight: 700, fontSize: "15px", color: "#111827", textTransform: "capitalize" }}>
+                                  {variant.color}
+                                </span>
+                                <span style={{ background: "#f3f4f6", color: "#4b5563", fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "10px" }}>
+                                  {variant.images.length} {variant.images.length === 1 ? "photo" : "photos"}
+                                </span>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveColor(variant.color)}
+                                style={{
+                                  background: "#fee2e2",
+                                  color: "#dc2626",
+                                  border: "none",
+                                  borderRadius: "8px",
+                                  padding: "6px 12px",
+                                  fontSize: "12px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px"
+                                }}
+                              >
+                                <Trash2 size={13} /> Remove Color
+                              </button>
+                            </div>
+
+                            {/* Upload & URL Controls for this color */}
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "12px" }}>
+                              {/* File upload button */}
+                              <label
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "8px",
+                                  padding: "10px 14px",
+                                  border: "1.5px dashed #cbd5e1",
+                                  borderRadius: "8px",
+                                  background: isUploadingThisColor ? "#fff7ed" : "#f8fafc",
+                                  cursor: isUploadingThisColor ? "not-allowed" : "pointer",
+                                  fontSize: "13px",
+                                  fontWeight: 600,
+                                  color: isUploadingThisColor ? "#ff6b00" : "#334155",
+                                  transition: "all 0.2s"
+                                }}
+                              >
+                                <Upload size={16} color={isUploadingThisColor ? "#ff6b00" : "#64748b"} />
+                                <span>{isUploadingThisColor ? "Uploading..." : `Upload ${variant.color} Photos`}</span>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  disabled={isUploadingThisColor}
+                                  onChange={(e) => handleColorImageUpload(variant.color, e)}
+                                  style={{ display: "none" }}
+                                />
+                              </label>
+
+                              {/* URL input */}
+                              <div style={{ display: "flex", gap: "6px" }}>
+                                <input
+                                  type="url"
+                                  value={urlValue}
+                                  onChange={(e) => setColorImageUrlMap(prev => ({ ...prev, [variant.color]: e.target.value }))}
+                                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddColorImageUrl(variant.color); } }}
+                                  placeholder="Paste image URL..."
+                                  style={{ flex: 1, padding: "8px 12px", border: "1.5px solid #e2e8f0", borderRadius: "8px", fontSize: "13px" }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddColorImageUrl(variant.color)}
+                                  className="btn-secondary"
+                                  style={{ padding: "8px 12px", fontSize: "12px", height: "auto", whiteSpace: "nowrap" }}
+                                >
+                                  Add URL
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Pictures Thumbnails */}
+                            {variant.images.length > 0 ? (
+                              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", background: "#f8fafc", padding: "10px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                                {variant.images.map((img, imgIdx) => (
+                                  <div
+                                    key={imgIdx}
+                                    style={{
+                                      position: "relative",
+                                      width: "68px",
+                                      height: "68px",
+                                      borderRadius: "8px",
+                                      overflow: "hidden",
+                                      border: imgIdx === 0 ? "2px solid #ff6b00" : "1.5px solid #cbd5e1",
+                                      boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
+                                      background: "white"
+                                    }}
+                                  >
+                                    <Image src={img} alt={`${variant.color} preview ${imgIdx + 1}`} width={68} height={68} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                                    {imgIdx === 0 && (
+                                      <span style={{ position: "absolute", bottom: "0", left: "0", right: "0", background: "rgba(255, 107, 0, 0.95)", color: "white", fontSize: "9px", fontWeight: 700, textAlign: "center", padding: "1px 0" }}>
+                                        Main
+                                      </span>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveColorImage(variant.color, img)}
+                                      style={{
+                                        position: "absolute",
+                                        top: "2px",
+                                        right: "2px",
+                                        background: "rgba(220, 38, 38, 0.9)",
+                                        border: "none",
+                                        borderRadius: "50%",
+                                        width: "18px",
+                                        height: "18px",
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "white"
+                                      }}
+                                      title="Remove photo"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p style={{ fontSize: "12px", color: "#94a3b8", fontStyle: "italic", margin: "4px 0 0 0" }}>
+                                No photos uploaded yet for {variant.color}. If empty, standard product images will be displayed.
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

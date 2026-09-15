@@ -18,7 +18,8 @@ import {
   MessageCircle,
   Mail,
   Clock,
-  Sparkles
+  Sparkles,
+  MapPin
 } from "lucide-react";
 
 export const revalidate = 60;
@@ -307,6 +308,9 @@ export default async function CustomPage({
 
   let storeName = "CartShip";
   let rawWhatsapp = "923713869780";
+  let supportEmail = "support@cartship.pk";
+  let supportPhone = "+92 300 1234567";
+  let storeAddress = "CartShip Headquarters, Pakistan";
 
   try {
     await connectToDatabase();
@@ -319,6 +323,15 @@ export default async function CustomPage({
       if (settingsDoc.storeName) storeName = settingsDoc.storeName;
       if (settingsDoc.whatsappNumber) rawWhatsapp = settingsDoc.whatsappNumber;
       else if (settingsDoc.footer?.contactPhone) rawWhatsapp = settingsDoc.footer.contactPhone;
+
+      if (settingsDoc.supportEmail) supportEmail = settingsDoc.supportEmail;
+      else if (settingsDoc.footer?.contactEmail) supportEmail = settingsDoc.footer.contactEmail;
+
+      if (settingsDoc.supportPhone) supportPhone = settingsDoc.supportPhone;
+      else if (settingsDoc.footer?.contactPhone) supportPhone = settingsDoc.footer.contactPhone;
+
+      if (settingsDoc.storeAddress) storeAddress = settingsDoc.storeAddress;
+      else if (settingsDoc.footer?.contactAddress) storeAddress = settingsDoc.footer.contactAddress;
     }
 
     if (pageDoc && pageDoc.content && pageDoc.content.trim().length > 20) {
@@ -337,7 +350,7 @@ export default async function CustomPage({
   if (!cleanWaNumber) cleanWaNumber = "923713869780";
 
   const waMessage = encodeURIComponent(
-    `Hi! I have a question regarding the ${pageTitle || "store policies"} on ${storeName}.`
+    `Hi! I have a question regarding ${storeName}.`
   );
   const whatsappUrl = `https://wa.me/${cleanWaNumber}?text=${waMessage}`;
 
@@ -348,6 +361,34 @@ export default async function CustomPage({
     pageSubtitle = fallback.subtitle;
     pageContent = fallback.content;
     iconName = fallback.icon;
+  }
+
+  // If this is the Contact Us page, dynamically sync email, phone, and address from admin panel settings
+  if (normalizedSlug === "contact-us") {
+    iconName = "phone";
+    if (!pageTitle) pageTitle = "Contact Us";
+
+    // Clean phone for tel: link
+    const cleanPhone = supportPhone.replace(/[^\d+]/g, "");
+
+    // Dynamically replace any hardcoded/seeded email, phone, or address in pageContent with Admin Panel values
+    pageContent = pageContent.replace(
+      /(<strong>\s*Email:\s*<\/strong>\s*)(?:<a[^>]*>)?([^<]+)(?:<\/a>)?/gi,
+      `$1<a href="mailto:${supportEmail}" class="contact-highlight-link">${supportEmail}</a>`
+    );
+    pageContent = pageContent.replace(
+      /(<strong>\s*Phone:\s*<\/strong>\s*)(?:<a[^>]*>)?([^<]+)(?:<\/a>)?/gi,
+      `$1<a href="tel:${cleanPhone}" class="contact-highlight-link">${supportPhone}</a>`
+    );
+    pageContent = pageContent.replace(
+      /(<strong>\s*Address:\s*<\/strong>\s*)([^<]+)/gi,
+      `$1<span>${storeAddress}</span>`
+    );
+    // Also catch plain text email / phone / address patterns if not wrapped in <strong>
+    pageContent = pageContent.replace(
+      /(Email:\s*)(?:<a[^>]*>)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:<\/a>)?/gi,
+      `$1<a href="mailto:${supportEmail}" class="contact-highlight-link">${supportEmail}</a>`
+    );
   }
 
   if (!pageTitle) {
@@ -414,6 +455,55 @@ export default async function CustomPage({
               dangerouslySetInnerHTML={{ __html: pageContent }}
             />
 
+            {/* Dedicated Dynamic Contact Cards for contact-us page */}
+            {normalizedSlug === "contact-us" && (
+              <div className="contact-cards-grid">
+                <a href={`mailto:${supportEmail}`} className="contact-card-item">
+                  <div className="contact-card-icon-wrap" style={{ background: "rgba(59, 130, 246, 0.12)", color: "#2563eb" }}>
+                    <Mail size={22} />
+                  </div>
+                  <div className="contact-card-text">
+                    <span className="contact-card-type">Official Email</span>
+                    <strong className="contact-card-main">{supportEmail}</strong>
+                    <span className="contact-card-sub">Direct replies within 24 hours</span>
+                  </div>
+                </a>
+
+                <a href={`tel:${supportPhone.replace(/[^\d+]/g, '')}`} className="contact-card-item">
+                  <div className="contact-card-icon-wrap" style={{ background: "rgba(16, 185, 129, 0.12)", color: "#10b981" }}>
+                    <Phone size={22} />
+                  </div>
+                  <div className="contact-card-text">
+                    <span className="contact-card-type">Customer Helpline</span>
+                    <strong className="contact-card-main">{supportPhone}</strong>
+                    <span className="contact-card-sub">Mon – Sat: 10:00 AM – 8:00 PM</span>
+                  </div>
+                </a>
+
+                <div className="contact-card-item">
+                  <div className="contact-card-icon-wrap" style={{ background: "rgba(249, 115, 22, 0.12)", color: "var(--orange, #FF6102)" }}>
+                    <MapPin size={22} />
+                  </div>
+                  <div className="contact-card-text">
+                    <span className="contact-card-type">Store Location</span>
+                    <strong className="contact-card-main">{storeAddress}</strong>
+                    <span className="contact-card-sub">Headquarters & Fulfillment Hub</span>
+                  </div>
+                </div>
+
+                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer" className="contact-card-item contact-card-item-wa">
+                  <div className="contact-card-icon-wrap" style={{ background: "#25d366", color: "#ffffff" }}>
+                    <MessageCircle size={22} />
+                  </div>
+                  <div className="contact-card-text">
+                    <span className="contact-card-type">WhatsApp Support</span>
+                    <strong className="contact-card-main">+{cleanWaNumber}</strong>
+                    <span className="contact-card-sub">Instant chat with support team</span>
+                  </div>
+                </a>
+              </div>
+            )}
+
             {/* Need Help Box */}
             <div className="policy-support-box">
               <div className="support-box-content">
@@ -421,7 +511,9 @@ export default async function CustomPage({
                   <MessageCircle size={28} />
                 </div>
                 <div>
-                  <h3 className="support-box-title">Have Questions About This Policy?</h3>
+                  <h3 className="support-box-title">
+                    {normalizedSlug === "contact-us" ? "Need Immediate Assistance?" : "Have Questions About This Policy?"}
+                  </h3>
                   <p className="support-box-desc">
                     Our customer experience team is available on WhatsApp and email to assist you with order verification, replacements, and inquiries.
                   </p>
@@ -730,6 +822,75 @@ export default async function CustomPage({
         .support-btn-track:hover {
           background: #1e293b;
           transform: translateY(-2px);
+        }
+
+        /* Contact Cards Grid */
+        .contact-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+          gap: 16px;
+          margin: 32px 0 36px;
+        }
+        .contact-card-item {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 20px;
+          background: #f8fafc;
+          border: 1.5px solid #e2e8f0;
+          border-radius: 16px;
+          text-decoration: none !important;
+          color: inherit !important;
+          transition: all 0.2s ease;
+        }
+        .contact-card-item:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 10px 24px rgba(16, 40, 87, 0.08);
+          border-color: var(--orange, #FF6102);
+          background: #ffffff;
+        }
+        .contact-card-item-wa:hover {
+          border-color: #25d366 !important;
+        }
+        .contact-card-icon-wrap {
+          width: 48px;
+          height: 48px;
+          border-radius: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .contact-card-text {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          min-width: 0;
+        }
+        .contact-card-type {
+          font-size: 11px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          font-weight: 700;
+          color: #64748b;
+        }
+        .contact-card-main {
+          font-size: 14.5px;
+          font-weight: 700;
+          color: #0f172a;
+          word-break: break-word;
+          line-height: 1.3;
+          font-family: var(--font-jakarta), sans-serif;
+        }
+        .contact-card-sub {
+          font-size: 12px;
+          color: #94a3b8;
+          line-height: 1.2;
+        }
+        .contact-highlight-link {
+          color: var(--orange, #FF6102) !important;
+          font-weight: 700 !important;
+          text-decoration: underline !important;
         }
 
         @media (max-width: 768px) {

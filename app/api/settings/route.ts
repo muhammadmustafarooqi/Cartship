@@ -14,6 +14,9 @@ export async function GET() {
       const defaults = {
         storeName: "CartShip",
         whatsappNumber: "923713869780",
+        supportEmail: "support@cartship.pk",
+        supportPhone: "+92 300 1234567",
+        storeAddress: "CartShip Headquarters, Pakistan",
         deliveryFee: 200,
         freeDeliveryAbove: 3000,
         announcementBarText: "Free Delivery on Orders Above PKR 3000 | COD Available Nationwide",
@@ -48,6 +51,9 @@ export async function GET() {
     return NextResponse.json({
       storeName: "CartShip",
       whatsappNumber: "923713869780",
+      supportEmail: "support@cartship.pk",
+      supportPhone: "+92 300 1234567",
+      storeAddress: "CartShip Headquarters, Pakistan",
       deliveryFee: 200,
       freeDeliveryAbove: 3000,
       announcementBarText: "Free Delivery on Orders Above PKR 3000 | COD Available Nationwide",
@@ -67,6 +73,25 @@ export async function POST(request: NextRequest) {
   try {
     await connectDB();
     const body = await request.json();
+
+    // Keep support contact fields synced with footer contact info
+    if (body.supportEmail && !body.footer?.contactEmail) {
+      body.footer = { ...(body.footer || {}), contactEmail: body.supportEmail };
+    } else if (body.footer?.contactEmail && !body.supportEmail) {
+      body.supportEmail = body.footer.contactEmail;
+    }
+
+    if (body.supportPhone && !body.footer?.contactPhone) {
+      body.footer = { ...(body.footer || {}), contactPhone: body.supportPhone };
+    } else if (body.footer?.contactPhone && !body.supportPhone) {
+      body.supportPhone = body.footer.contactPhone;
+    }
+
+    if (body.storeAddress && !body.footer?.contactAddress) {
+      body.footer = { ...(body.footer || {}), contactAddress: body.storeAddress };
+    } else if (body.footer?.contactAddress && !body.storeAddress) {
+      body.storeAddress = body.footer.contactAddress;
+    }
 
     // Use findOneAndUpdate to properly merge nested objects
     const settings = await Settings.findOneAndUpdate(
@@ -90,6 +115,16 @@ export async function PATCH(request: NextRequest) {
   try {
     await connectDB();
     const body = await request.json();
+
+    if (body.supportEmail && !body.footer?.contactEmail) {
+      body.footer = { ...(body.footer || {}), contactEmail: body.supportEmail };
+    }
+    if (body.supportPhone && !body.footer?.contactPhone) {
+      body.footer = { ...(body.footer || {}), contactPhone: body.supportPhone };
+    }
+    if (body.storeAddress && !body.footer?.contactAddress) {
+      body.footer = { ...(body.footer || {}), contactAddress: body.storeAddress };
+    }
 
     const settings = await Settings.findOneAndUpdate({}, body, {
       new: true,

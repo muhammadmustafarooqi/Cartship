@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Plus, Trash2, Edit, X, Upload, GripVertical, Star } from "lucide-react";
 import toast from "react-hot-toast";
+import { uploadToImageKit } from "@/lib/uploadClient";
 
 interface Category {
   _id: string;
@@ -129,22 +130,12 @@ export default function AdminCategoriesPage() {
     }
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", file);
-
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!res.ok) throw new Error();
-      
-      const data = await res.json();
+      const data = await uploadToImageKit(file, { folder: "/cartship/categories" });
       setForm((f) => ({ ...f, image: data.url }));
       toast.success("Image uploaded!");
-    } catch {
-      toast.error("Failed to upload image");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to upload image");
     } finally {
       setUploading(false);
     }

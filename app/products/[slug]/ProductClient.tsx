@@ -13,11 +13,17 @@ import { fbq } from "@/lib/fpq";
 import { ShoppingCart, Minus, Plus, Package, Zap, ShieldCheck, Frown, Truck, RefreshCcw, Play, Pause, ZoomIn, ZoomOut, RotateCcw, Check } from "lucide-react";
 import ProductDetailTabs from "@/components/ProductDetailTabs";
 
+interface ColorVariant {
+  color: string;
+  images: string[];
+}
+
 interface Product {
   _id: string; name: string; slug: string; price: number; comparePrice?: number;
   images: string[]; previewVideoUrl?: string; category: string; description: string; shortDescription: string;
   isFeatured?: boolean; isNewArrival?: boolean; rating?: number;
   reviewCount?: number; stock?: number; tags?: string[]; colors?: string[];
+  colorVariants?: ColorVariant[];
 }
 
 type MediaMode = "video" | "photos";
@@ -28,13 +34,49 @@ interface Pack {
   label?: string;
 }
 
+const getFallbackImage = (category: string, name: string) => {
+  const fallbacks: Record<string, string[]> = {
+    "kitchen-cooking": [
+      "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1593618998160-e34014e67546?auto=format&fit=crop&q=80&w=400",
+    ],
+    "personal-care-beauty": [
+      "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&q=80&w=400",
+    ],
+    "home-cleaning": [
+      "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1584820927498-cafe2c1c9699?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1527515637-67c2dd43d411?auto=format&fit=crop&q=80&w=400",
+    ],
+    "fitness-health": [
+      "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400",
+    ],
+    "electronics-gadgets": [
+      "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=400",
+    ],
+    "baby-kids": [
+      "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=400",
+      "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=400",
+    ]
+  };
+  const catImages = fallbacks[category] || fallbacks["electronics-gadgets"];
+  const index = name.length % catImages.length;
+  return catImages[index];
+};
+
 export default function ProductClient({ initialProduct, initialRelated, initialPacks = [] }: { initialProduct: Product; initialRelated: Product[]; initialPacks?: Pack[] }) {
   const router = useRouter();
   const { addItem, items } = useCart();
   const { settings, loading: settingsLoading } = useSettings();
   const cartBtnRef = useRef<HTMLButtonElement>(null);
-
-  const imageCount = Math.max(initialProduct.images.length, 1);
 
   const [product, setProduct] = useState<Product | null>(initialProduct);
   const [related, setRelated] = useState<Product[]>(initialRelated);
@@ -44,11 +86,43 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
   const [quantity, setQuantity] = useState(1);
   const [selectedPackIndex, setSelectedPackIndex] = useState<number | null>(null);
   const [imgFade, setImgFade] = useState(true);
-  const [selectedColor, setSelectedColor] = useState<string>(initialProduct?.colors?.[0] || "");
+  const [selectedColor, setSelectedColor] = useState<string>(
+    initialProduct?.colors?.[0] || initialProduct?.colorVariants?.[0]?.color || ""
+  );
   const [isHovered, setIsHovered] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const detailVideoRef = useRef<HTMLVideoElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
+
+  // Active color variant images if available
+  const activeColorVariant = product?.colorVariants?.find(
+    (cv) => cv.color.toLowerCase() === selectedColor.toLowerCase()
+  );
+  const activeColorImages =
+    activeColorVariant?.images && activeColorVariant.images.length > 0
+      ? activeColorVariant.images
+      : null;
+
+  const allImages =
+    activeColorImages && activeColorImages.length > 0
+      ? activeColorImages
+      : product && product.images.length > 0
+      ? product.images
+      : product
+      ? [getFallbackImage(product.category, product.name)]
+      : [];
+
+  const imageCount = Math.max(allImages.length, 1);
+
+  const handleSelectColor = (color: string) => {
+    if (selectedColor.toLowerCase() === color.toLowerCase()) return;
+    setImgFade(false);
+    setSelectedColor(color);
+    setPhotoIndex(0);
+    setTimeout(() => {
+      setImgFade(true);
+    }, 150);
+  };
 
   // Zoom and Pan states
   const [zoom, setZoom] = useState(1);
@@ -229,7 +303,15 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
       nameSuffix = ` - ${pack.quantity} Pack`;
     }
 
-    addItem({ productId: cartProductId, name: product.name + nameSuffix, price: finalPrice, quantity: finalQuantity, image: allImages[0], slug: product.slug });
+    addItem({
+      productId: cartProductId,
+      name: product.name + nameSuffix,
+      price: finalPrice,
+      quantity: finalQuantity,
+      image: allImages[0] || product.images[0] || "",
+      slug: product.slug,
+      selectedColor: selectedColor || undefined,
+    });
     if (cartBtnRef.current) {
       cartBtnRef.current.style.background = "var(--color-success)";
       cartBtnRef.current.style.borderColor = "var(--color-success)";
@@ -274,7 +356,15 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
       nameSuffix = ` - ${pack.quantity} Pack`;
     }
 
-    addItem({ productId: cartProductId, name: product.name + nameSuffix, price: finalPrice, quantity: finalQuantity, image: allImages[0], slug: product.slug });
+    addItem({
+      productId: cartProductId,
+      name: product.name + nameSuffix,
+      price: finalPrice,
+      quantity: finalQuantity,
+      image: allImages[0] || product.images[0] || "",
+      slug: product.slug,
+      selectedColor: selectedColor || undefined,
+    });
     router.push('/checkout');
   };
 
@@ -306,57 +396,18 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
   const waMsg = `Hi! I want to order:\n*${product.name}*\nPrice: Rs. ${product.price.toLocaleString()}\n\nPlease confirm availability.`;
   const waUrl = `https://wa.me/${waNum}?text=${encodeURIComponent(waMsg)}`;
 
-  const getFallbackImage = (category: string, name: string) => {
-    const fallbacks: Record<string, string[]> = {
-      "kitchen-cooking": [
-        "https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1593618998160-e34014e67546?auto=format&fit=crop&q=80&w=400",
-      ],
-      "personal-care-beauty": [
-        "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1596462502278-27bfdc403348?auto=format&fit=crop&q=80&w=400",
-      ],
-      "home-cleaning": [
-        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1584820927498-cafe2c1c9699?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1527515637-67c2dd43d411?auto=format&fit=crop&q=80&w=400",
-      ],
-      "fitness-health": [
-        "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=400",
-      ],
-      "electronics-gadgets": [
-        "https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1546868871-7041f2a55e12?auto=format&fit=crop&q=80&w=400",
-      ],
-      "baby-kids": [
-        "https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1519689680058-324335c77eba?auto=format&fit=crop&q=80&w=400",
-        "https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?auto=format&fit=crop&q=80&w=400",
-      ]
-    };
-    const catImages = fallbacks[category] || fallbacks["electronics-gadgets"];
-    const index = name.length % catImages.length;
-    return catImages[index];
-  };
-
-  const allImages = product.images.length > 0
-    ? product.images
-    : [getFallbackImage(product.category, product.name)];
-
   const previewVideoUrl = product.previewVideoUrl?.trim() ?? "";
   const hasVideo =
     Boolean(previewVideoUrl) &&
     (/^https?:\/\//i.test(previewVideoUrl) || previewVideoUrl.startsWith("/"));
   const showMediaToggle = hasVideo || allImages.length > 1;
-  const currentPhoto = allImages[photoIndex] ?? allImages[0];
+  const activePhotoIndex = photoIndex < allImages.length ? photoIndex : 0;
+  const currentPhoto = allImages[activePhotoIndex] ?? allImages[0] ?? "";
 
   const currentCartProductId = product ? (selectedPackIndex !== null && initialPacks[selectedPackIndex] ? `pack-${product._id}-${initialPacks[selectedPackIndex].quantity}` : product._id) : "";
-  const isAlreadyInCart = items.some(item => item.productId === currentCartProductId);
+  const isAlreadyInCart = items.some(
+    item => item.productId === currentCartProductId && (item.selectedColor || "") === (selectedColor || "")
+  );
 
   return (
     <div style={s}>
@@ -541,9 +592,48 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
                     aria-pressed={mediaMode === "photos"}
                     onClick={() => switchMediaMode("photos")}
                   >
-                    Photos {photoIndex + 1}/{allImages.length}
+                    Photos {activePhotoIndex + 1}/{allImages.length}
                   </button>
                 </div>
+              </div>
+            )}
+
+            {/* Thumbnail Carousel Strip */}
+            {mediaMode === "photos" && allImages.length > 1 && (
+              <div style={{ display: "flex", gap: "10px", overflowX: "auto", padding: "12px 2px", scrollbarWidth: "thin", maxWidth: "100%" }}>
+                {allImages.map((img, idx) => {
+                  const isThumbActive = activePhotoIndex === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setAutoRotate(false);
+                        setImgFade(false);
+                        setPhotoIndex(idx);
+                        setTimeout(() => setImgFade(true), 150);
+                      }}
+                      style={{
+                        position: "relative",
+                        width: "64px",
+                        height: "64px",
+                        borderRadius: "10px",
+                        overflow: "hidden",
+                        border: isThumbActive ? "2px solid var(--text-primary)" : "1px solid var(--border-default)",
+                        padding: 0,
+                        cursor: "pointer",
+                        background: "var(--bg-card)",
+                        flexShrink: 0,
+                        opacity: isThumbActive ? 1 : 0.65,
+                        transition: "all 0.2s ease",
+                        boxShadow: isThumbActive ? "0 2px 8px rgba(0,0,0,0.12)" : "none"
+                      }}
+                      aria-label={`Select photo ${idx + 1}`}
+                    >
+                      <Image src={img} alt={`View ${idx + 1}`} fill sizes="64px" style={{ objectFit: "cover" }} />
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -596,46 +686,81 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
             )}
 
             {/* Color Selection */}
-            {product.colors && product.colors.length > 0 && (
-              <div style={{ marginBottom: "32px" }}>
-                <label style={{ display: "block", fontWeight: 700, fontSize: "12px", color: "var(--text-secondary)", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "1px", fontFamily: "Outfit, sans-serif" }}>Select Color</label>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {product.colors.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setSelectedColor(color)}
-                      style={{
-                        padding: "10px 20px",
-                        borderRadius: "100px",
-                        border: selectedColor === color ? "2px solid var(--text-primary)" : "2px solid var(--border-default)",
-                        background: selectedColor === color ? "var(--text-primary)" : "var(--bg-card)",
-                        color: selectedColor === color ? "white" : "var(--text-primary)",
-                        cursor: "pointer",
-                        fontSize: "14px",
-                        fontWeight: selectedColor === color ? 700 : 500,
-                        fontFamily: "Plus Jakarta Sans, sans-serif",
-                        transition: "all 0.2s ease",
-                        boxShadow: selectedColor === color ? "0 4px 12px rgba(15,23,42,0.15)" : "var(--shadow-sm)"
-                      }}
-                      onMouseEnter={(e) => {
-                        if (selectedColor !== color) {
-                          (e.currentTarget as HTMLElement).style.borderColor = "var(--text-primary)";
-                          (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (selectedColor !== color) {
-                          (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
-                          (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
-                        }
-                      }}
-                    >
-                      {color}
-                    </button>
-                  ))}
+            {((product.colors && product.colors.length > 0) || (product.colorVariants && product.colorVariants.length > 0)) && (() => {
+              const displayColors = Array.from(
+                new Set([
+                  ...(product.colors || []),
+                  ...(product.colorVariants?.map((cv) => cv.color) || []),
+                ])
+              ).filter(Boolean);
+
+              if (displayColors.length === 0) return null;
+
+              return (
+                <div style={{ marginBottom: "32px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                    <label style={{ display: "block", fontWeight: 700, fontSize: "12px", color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "1px", fontFamily: "Outfit, sans-serif" }}>
+                      Select Color: <span style={{ color: "var(--text-primary)", fontWeight: 800, textTransform: "capitalize" }}>{selectedColor}</span>
+                    </label>
+                    {activeColorImages && activeColorImages.length > 0 && (
+                      <span style={{ fontSize: "12px", color: "var(--color-brand)", fontWeight: 600 }}>
+                        {activeColorImages.length} photo{activeColorImages.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                    {displayColors.map((color) => {
+                      const isSelected = selectedColor.toLowerCase() === color.toLowerCase();
+                      const variant = product.colorVariants?.find((cv) => cv.color.toLowerCase() === color.toLowerCase());
+                      const variantThumb = variant?.images?.[0];
+
+                      return (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => handleSelectColor(color)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            padding: variantThumb ? "6px 16px 6px 8px" : "10px 20px",
+                            borderRadius: "100px",
+                            border: isSelected ? "2px solid var(--text-primary)" : "2px solid var(--border-default)",
+                            background: isSelected ? "var(--text-primary)" : "var(--bg-card)",
+                            color: isSelected ? "white" : "var(--text-primary)",
+                            cursor: "pointer",
+                            fontSize: "14px",
+                            fontWeight: isSelected ? 700 : 500,
+                            fontFamily: "Plus Jakarta Sans, sans-serif",
+                            transition: "all 0.2s ease",
+                            boxShadow: isSelected ? "0 4px 12px rgba(15,23,42,0.15)" : "var(--shadow-sm)"
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSelected) {
+                              (e.currentTarget as HTMLElement).style.borderColor = "var(--text-primary)";
+                              (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)";
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSelected) {
+                              (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                              (e.currentTarget as HTMLElement).style.transform = "translateY(0)";
+                            }
+                          }}
+                        >
+                          {variantThumb && (
+                            <div style={{ position: "relative", width: 22, height: 22, borderRadius: "50%", overflow: "hidden", border: isSelected ? "1.5px solid white" : "1.5px solid var(--border-default)", flexShrink: 0 }}>
+                              <Image src={variantThumb} alt={color} fill sizes="22px" style={{ objectFit: "cover" }} />
+                            </div>
+                          )}
+                          {color}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Offers / Packs */}
             {initialPacks && initialPacks.length > 0 ? (

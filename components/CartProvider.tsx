@@ -11,15 +11,15 @@ export interface CartItem {
   quantity: number;
   image: string;
   slug?: string;
+  selectedColor?: string;
   selectedBundleItems?: { productId: string; name: string }[];
 }
-
 
 interface CartContextType {
   items: CartItem[];
   addItem: (item: CartItem) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeItem: (productId: string, selectedColor?: string) => void;
+  updateQuantity: (productId: string, quantity: number, selectedColor?: string) => void;
   clearCart: () => void;
   totalItems: number;
   subtotal: number;
@@ -57,10 +57,12 @@ export default function CartProvider({
 
   const addItem = (item: CartItem) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === item.productId);
+      const existing = prev.find(
+        (i) => i.productId === item.productId && (i.selectedColor || "") === (item.selectedColor || "")
+      );
       if (existing) {
         return prev.map((i) =>
-          i.productId === item.productId
+          i.productId === item.productId && (i.selectedColor || "") === (item.selectedColor || "")
             ? { ...i, quantity: i.quantity + item.quantity }
             : i
         );
@@ -68,27 +70,35 @@ export default function CartProvider({
       return [...prev, item];
     });
 
-    // Show toast outside state updater to avoid double trigger in Strict Mode
-    const existing = items.find((i) => i.productId === item.productId);
-    if (existing) {
-      toast.success(`${item.name} quantity updated!`);
-    } else {
-      toast.success(`${item.name} added to cart!`);
-    }
+    const label = item.selectedColor ? `${item.name} (${item.selectedColor})` : item.name;
+    toast.success(`${label} added to cart!`);
   };
 
-  const removeItem = (productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const removeItem = (productId: string, selectedColor?: string) => {
+    setItems((prev) =>
+      prev.filter(
+        (i) =>
+          !(
+            i.productId === productId &&
+            (selectedColor !== undefined ? (i.selectedColor || "") === (selectedColor || "") : true)
+          )
+      )
+    );
     toast.success("Item removed from cart");
   };
 
-  const updateQuantity = (productId: string, quantity: number) => {
+  const updateQuantity = (productId: string, quantity: number, selectedColor?: string) => {
     if (quantity < 1) {
-      removeItem(productId);
+      removeItem(productId, selectedColor);
       return;
     }
     setItems((prev) =>
-      prev.map((i) => (i.productId === productId ? { ...i, quantity } : i))
+      prev.map((i) =>
+        i.productId === productId &&
+        (selectedColor !== undefined ? (i.selectedColor || "") === (selectedColor || "") : true)
+          ? { ...i, quantity }
+          : i
+      )
     );
   };
 

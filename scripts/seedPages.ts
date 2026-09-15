@@ -47,7 +47,7 @@ const pagesToSeed = [
   {
     title: "Contact Us",
     slug: "contact-us",
-    content: "<h2>Contact Us</h2><p>Have questions? We're here to help!</p><ul><li><strong>Email:</strong> support@cartship.com</li><li><strong>Phone:</strong> +92 300 1234567</li><li><strong>Address:</strong> CartShip Headquarters, Pakistan</li></ul><p>Or simply use the WhatsApp widget at the bottom right of the screen to chat with us directly.</p>",
+    content: "<h2>Contact Us</h2><p>Have questions? We're here to help!</p><ul><li><strong>Email:</strong> support@cartship.pk</li><li><strong>Phone:</strong> +92 300 1234567</li><li><strong>Address:</strong> CartShip Headquarters, Pakistan</li></ul><p>Or simply use the WhatsApp widget at the bottom right of the screen to chat with us directly.</p>",
     isActive: true,
   }
 ];

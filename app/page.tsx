@@ -120,11 +120,26 @@ export default async function HomePage() {
           </div>
 
           {newArrivals.length > 0 ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "32px 24px" }}>
-              {newArrivals.map((p: Product) => (
-                <ProductCard key={p._id} product={p} />
-              ))}
-            </div>
+            <>
+              <div className="new-arrivals-grid">
+                {newArrivals.map((p: Product) => (
+                  <ProductCard key={p._id} product={p} />
+                ))}
+              </div>
+              <style>{`
+                .new-arrivals-grid {
+                  display: grid;
+                  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+                  gap: 32px 24px;
+                }
+                @media (max-width: 640px) {
+                  .new-arrivals-grid {
+                    grid-template-columns: repeat(2, minmax(0, 1fr));
+                    gap: 16px 10px;
+                  }
+                }
+              `}</style>
+            </>
           ) : (
             <div style={{ textAlign: "center", padding: "80px 0", color: "var(--slate)", background: "var(--white)", borderRadius: "var(--radius-lg)", border: "1px dashed var(--border-default)" }}>
               <div style={{ display: "flex", justifyContent: "center", marginBottom: "16px", color: "var(--slate)" }}>

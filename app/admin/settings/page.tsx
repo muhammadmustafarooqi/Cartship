@@ -2,20 +2,33 @@
 
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import { useDraft } from "@/lib/useDraft";
+import { uploadToImageKit } from "@/lib/uploadClient";
 
 export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(false);
   const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  const [dbSettings, setDbSettings] = useState<any>(null);
+  const [hasDraftEdits, setHasDraftEdits] = useState(false);
   const [form, setForm] = useState({
     storeName: "",
     logoUrl: "",
     faviconUrl: "",
     whatsappNumber: "923713869780",
+    supportEmail: "support@cartship.pk",
+    supportPhone: "+92 300 1234567",
+    storeAddress: "CartShip Headquarters, Pakistan",
     deliveryFee: 200,
     freeDeliveryAbove: 3000,
     announcementBarText: "Free Delivery on Orders Above PKR 3000 | COD Available Nationwide",
     announcementBarActive: true,
   });
+
+  const { lastSavedText, clearDraft } = useDraft(
+    "cartship_admin_draft_settings",
+    form,
+    { enabled: !isLoadingSettings && hasDraftEdits }
+  );
 
   // Load settings from database on mount
   useEffect(() => {
@@ -29,16 +42,36 @@ export default function AdminSettingsPage() {
         });
         if (response.ok) {
           const data = await response.json();
-          setForm({
+          const baseSettings = {
             storeName: data.storeName || "CartShip",
             logoUrl: data.logoUrl || "",
             faviconUrl: data.faviconUrl || "",
             whatsappNumber: data.whatsappNumber || "923713869780",
+            supportEmail: data.supportEmail || data.footer?.contactEmail || "support@cartship.pk",
+            supportPhone: data.supportPhone || data.footer?.contactPhone || data.whatsappNumber || "+92 300 1234567",
+            storeAddress: data.storeAddress || data.footer?.contactAddress || "CartShip Headquarters, Pakistan",
             deliveryFee: data.deliveryFee || 200,
             freeDeliveryAbove: data.freeDeliveryAbove || 3000,
             announcementBarText: data.announcementBarText || "Free Delivery on Orders Above PKR 3000 | COD Available Nationwide",
             announcementBarActive: data.announcementBarActive ?? true,
-          });
+          };
+          setDbSettings(baseSettings);
+
+          // Check if there are unsaved draft settings
+          try {
+            const savedDraft = localStorage.getItem("cartship_admin_draft_settings");
+            if (savedDraft) {
+              const parsed = JSON.parse(savedDraft);
+              if (parsed?.data) {
+                setForm({ ...baseSettings, ...parsed.data });
+                setHasDraftEdits(true);
+                toast.success("Restored unsaved draft settings from your last session!");
+                return;
+              }
+            }
+          } catch {}
+
+          setForm(baseSettings);
         }
       } catch (error) {
         console.error("Error loading settings:", error);
@@ -72,6 +105,12 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({
           ...currentData,
           ...form,
+          footer: {
+            ...(currentData?.footer || {}),
+            contactEmail: form.supportEmail,
+            contactPhone: form.supportPhone,
+            contactAddress: form.storeAddress,
+          },
         }),
       });
 
@@ -81,6 +120,9 @@ export default function AdminSettingsPage() {
       }
 
       toast.success("Settings updated successfully!");
+      clearDraft();
+      localStorage.removeItem("cartship_admin_draft_settings");
+      setHasDraftEdits(false);
       window.dispatchEvent(new Event('settingsUpdated'));
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to update settings");
@@ -99,29 +141,59 @@ export default function AdminSettingsPage() {
     }
 
     const toastId = toast.loading("Uploading image...");
-    const formData = new FormData();
-    formData.append("file", file);
 
     try {
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
-      
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
+      const data = await uploadToImageKit(file, { folder: "/cartship/settings" });
       setForm(f => ({ ...f, [field]: data.url }));
       toast.success("Image uploaded successfully!", { id: toastId });
-    } catch (error) {
-      toast.error("Failed to upload image", { id: toastId });
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to upload image", { id: toastId });
     }
   };
 
   return (
     <div className="admin-page-container" style={{ maxWidth: "800px" }}>
-      <div style={{ marginBottom: "32px" }}>
-        <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1f2937" }}>Store Settings</h1>
-        <p style={{ color: "#6b7280", marginTop: "4px" }}>Manage your store configuration</p>
+      <div style={{ marginBottom: "32px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "16px" }}>
+        <div>
+          <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1f2937" }}>Store Settings</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", marginTop: "4px" }}>
+            <p style={{ color: "#6b7280", margin: 0 }}>Manage your store configuration</p>
+            {hasDraftEdits && (
+              <>
+                <span style={{ color: "#d1d5db" }}>•</span>
+                <span style={{ fontSize: "12px", color: "#10b981", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                  <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }}></span>
+                  {lastSavedText || "Auto-saving draft"}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm("Discard unsaved settings changes and revert to saved store settings?")) {
+                      clearDraft();
+                      localStorage.removeItem("cartship_admin_draft_settings");
+                      setHasDraftEdits(false);
+                      if (dbSettings) {
+                        setForm(dbSettings);
+                      }
+                      toast("Reverted to saved settings", { icon: "↩️" });
+                    }
+                  }}
+                  style={{
+                    fontSize: "12px",
+                    color: "#ef4444",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                    padding: 0
+                  }}
+                >
+                  Discard Draft Changes
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       <div style={{ background: "white", borderRadius: "16px", padding: "32px", border: "1px solid #f0f0f0" }}>
@@ -177,6 +249,44 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               </div>
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2937", marginBottom: "8px", borderBottom: "1px solid #f0f0f0", paddingBottom: "8px" }}>
+              Contact Information (Contact Us Page & Footer)
+            </h3>
+            <p style={{ fontSize: "13px", color: "#6b7280", margin: "0 0 16px" }}>
+              These details automatically populate your customer-facing Contact Us page and website footer.
+            </p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Customer Support Email</label>
+                <input 
+                  type="email" 
+                  value={form.supportEmail} 
+                  onChange={(e) => setForm(f => ({ ...f, supportEmail: e.target.value }))} 
+                  placeholder="e.g. support@cartship.pk"
+                />
+              </div>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label>Customer Support Phone / Helpline</label>
+                <input 
+                  type="text" 
+                  value={form.supportPhone} 
+                  onChange={(e) => setForm(f => ({ ...f, supportPhone: e.target.value }))} 
+                  placeholder="e.g. +92 300 1234567"
+                />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: "16px", marginBottom: 0 }}>
+              <label>Store Physical Address / Headquarters</label>
+              <input 
+                type="text" 
+                value={form.storeAddress} 
+                onChange={(e) => setForm(f => ({ ...f, storeAddress: e.target.value }))} 
+                placeholder="e.g. CartShip Headquarters, Pakistan"
+              />
             </div>
           </div>
 

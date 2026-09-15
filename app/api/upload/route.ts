@@ -31,14 +31,13 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString("base64");
 
     const imagekit = getImageKit();
     const isVideo = file.type.startsWith("video/");
     const safeFileName = file.name ? file.name.replace(/[^a-zA-Z0-9.-]/g, "_") : `file_${Date.now()}`;
 
     const result = await imagekit.upload({
-      file: base64,
+      file: buffer,
       fileName: safeFileName,
       folder: isVideo ? "/cartship/videos" : "/cartship",
       useUniqueFileName: true,

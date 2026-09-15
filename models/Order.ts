@@ -8,6 +8,7 @@ export interface IOrderItem {
   quantity: number;
   image: string;
   isGift?: boolean;
+  selectedColor?: string;
   selectedBundleItems?: { productId: mongoose.Types.ObjectId; name: string }[];
 }
 
@@ -40,6 +41,7 @@ const OrderItemSchema = new Schema<IOrderItem>({
   quantity: { type: Number, required: true, min: 1 },
   image: { type: String, default: "" },
   isGift: { type: Boolean, default: false },
+  selectedColor: { type: String, default: "" },
   selectedBundleItems: [
     {
       productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },

@@ -422,6 +422,9 @@ export default function ProductCard({ product }: { product: Product }) {
           height: 100%;
           display: block;
           color: inherit;
+          -webkit-user-drag: none;
+          user-select: none;
+          -webkit-tap-highlight-color: transparent;
         }
 
         .pc-shell {
@@ -510,6 +513,8 @@ export default function ProductCard({ product }: { product: Product }) {
             opacity 0.5s cubic-bezier(0.25, 0.8, 0.25, 1),
             transform 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
           pointer-events: none;
+          -webkit-user-drag: none;
+          user-select: none;
         }
 
         .pc-img-layer--active {

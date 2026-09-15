@@ -55,7 +55,7 @@ export default function CartPage() {
           {/* Items */}
           <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             {items.map((item) => (
-              <div key={item.productId} className="cart-item">
+              <div key={`${item.productId}-${item.selectedColor || "default"}`} className="cart-item">
                 <Link href={`/products/${item.slug || item.productId}`}>
                   <div style={{ width: "100px", height: "100px", borderRadius: "12px", overflow: "hidden", background: "var(--bg-card)", border: "1px solid var(--border-default)", flexShrink: 0, padding: "8px" }}>
                     <Image src={item.image || `https://placehold.co/100x100/ffffff/2563eb?text=P`} alt={item.name} width={100} height={100} style={{ width: "100%", height: "100%", objectFit: "contain" }}  />
@@ -64,19 +64,26 @@ export default function CartPage() {
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", padding: "4px 0" }}>
                   <div>
                     <Link href={`/products/${item.slug || item.productId}`} style={{ textDecoration: "none" }}>
-                      <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "8px", fontFamily: "Outfit, sans-serif" }}>{item.name}</div>
+                      <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--text-primary)", lineHeight: 1.4, marginBottom: "4px", fontFamily: "Outfit, sans-serif" }}>{item.name}</div>
                     </Link>
+                    {item.selectedColor && (
+                      <div style={{ marginBottom: "6px" }}>
+                        <span style={{ display: "inline-block", background: "var(--cream-dark)", border: "1px solid var(--border-default)", padding: "2px 8px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, color: "var(--slate)" }}>
+                          Color: {item.selectedColor}
+                        </span>
+                      </div>
+                    )}
                     <div style={{ fontSize: "16px", fontWeight: 800, color: "var(--text-primary)", fontFamily: "Outfit, sans-serif" }}>Rs. {item.price.toLocaleString()}</div>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "16px" }}>
                     <div className="qty-control" style={{ background: "var(--bg-card)" }}>
-                      <button onClick={() => updateQuantity(item.productId, item.quantity - 1)}><Minus size={14} color="var(--color-icon)" /></button>
+                      <button onClick={() => updateQuantity(item.productId, item.quantity - 1, item.selectedColor)}><Minus size={14} color="var(--color-icon)" /></button>
                       <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.productId, item.quantity + 1)}><Plus size={14} color="var(--color-icon)" /></button>
+                      <button onClick={() => updateQuantity(item.productId, item.quantity + 1, item.selectedColor)}><Plus size={14} color="var(--color-icon)" /></button>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
                       <span style={{ fontWeight: 800, fontSize: "15px", color: "var(--text-primary)", fontFamily: "Outfit, sans-serif" }}>Rs. {(item.price * item.quantity).toLocaleString()}</span>
-                      <button onClick={() => removeItem(item.productId)} style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "8px", cursor: "pointer", color: "#ef4444", display: "flex", padding: "8px", transition: "all 0.2s ease" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-card)")}>
+                      <button onClick={() => removeItem(item.productId, item.selectedColor)} style={{ background: "var(--bg-card)", border: "1px solid var(--border-default)", borderRadius: "8px", cursor: "pointer", color: "#ef4444", display: "flex", padding: "8px", transition: "all 0.2s ease" }} onMouseEnter={(e) => (e.currentTarget.style.background = "#fee2e2")} onMouseLeave={(e) => (e.currentTarget.style.background = "var(--bg-card)")}>
                         <Trash2 size={16} />
                       </button>
                     </div>

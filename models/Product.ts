@@ -1,5 +1,10 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
+export interface IColorVariant {
+  color: string;
+  images: string[];
+}
+
 export interface IProduct extends Document {
   name: string;
   slug: string;
@@ -13,6 +18,7 @@ export interface IProduct extends Document {
   category: string;
   tags: string[];
   colors: string[];
+  colorVariants?: IColorVariant[];
   stock: number;
   isFeatured: boolean;
   isNewArrival: boolean;
@@ -36,6 +42,12 @@ const ProductSchema = new Schema<IProduct>(
     category: { type: String, required: true },
     tags: [{ type: String }],
     colors: [{ type: String }],
+    colorVariants: [
+      {
+        color: { type: String, required: true },
+        images: [{ type: String }],
+      },
+    ],
     stock: { type: Number, default: 0, min: 0 },
     isFeatured: { type: Boolean, default: false },
     isNewArrival: { type: Boolean, default: false },

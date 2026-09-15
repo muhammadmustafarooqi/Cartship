@@ -18,6 +18,7 @@ interface Order {
     price: number;
     image: string;
     isGift?: boolean;
+    selectedColor?: string;
     bundleId?: string;
     selectedBundleItems?: Array<{ name: string }>;
   }>;
@@ -676,6 +677,11 @@ export default function AdminOrdersPage() {
                           <span style={{ color: "#374151", fontWeight: 500 }}>
                             {item.name} ×{item.quantity}
                           </span>
+                          {item.selectedColor && (
+                            <span style={{ background: "#eff6ff", color: "#2563eb", border: "1px solid #bfdbfe", padding: "1px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              Color: {item.selectedColor}
+                            </span>
+                          )}
                           {item.isGift && (
                             <span style={{ background: "#fdf2f8", color: "#db2777", padding: "2px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 700, alignSelf: "flex-start" }}>
                               🎁 Gift

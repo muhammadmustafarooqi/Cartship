@@ -5,6 +5,9 @@ export interface ISettings extends Document {
   logoUrl?: string;
   faviconUrl?: string;
   whatsappNumber: string;
+  supportEmail?: string;
+  supportPhone?: string;
+  storeAddress?: string;
   deliveryFee: number;
   freeDeliveryAbove: number;
   announcementBarText: string;
@@ -61,6 +64,9 @@ const SettingsSchema = new Schema<ISettings>(
       type: String,
       default: process.env.WHATSAPP_NUMBER || "923713869780",
     },
+    supportEmail: { type: String, default: "support@cartship.pk" },
+    supportPhone: { type: String, default: "+92 300 1234567" },
+    storeAddress: { type: String, default: "CartShip Headquarters, Pakistan" },
     deliveryFee: { type: Number, default: 200 },
     freeDeliveryAbove: { type: Number, default: 3000 },
     announcementBarText: {
