@@ -10,6 +10,7 @@ import ProductCard from "@/components/ProductCard";
 import { useCart } from "@/components/CartProvider";
 import { useSettings } from "@/lib/useSettings";
 import { fbq } from "@/lib/fpq";
+import { getColorHex } from "@/lib/utils";
 import { ShoppingCart, Minus, Plus, Package, Zap, ShieldCheck, Frown, Truck, RefreshCcw, Play, Pause, ZoomIn, ZoomOut, RotateCcw, Check } from "lucide-react";
 import ProductDetailTabs from "@/components/ProductDetailTabs";
 
@@ -713,6 +714,7 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
                       const isSelected = selectedColor.toLowerCase() === color.toLowerCase();
                       const variant = product.colorVariants?.find((cv) => cv.color.toLowerCase() === color.toLowerCase());
                       const variantThumb = variant?.images?.[0];
+                      const hexColor = getColorHex(color);
 
                       return (
                         <button
@@ -723,7 +725,7 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
                             display: "inline-flex",
                             alignItems: "center",
                             gap: "8px",
-                            padding: variantThumb ? "6px 16px 6px 8px" : "10px 20px",
+                            padding: "8px 18px 8px 10px",
                             borderRadius: "100px",
                             border: isSelected ? "2px solid var(--text-primary)" : "2px solid var(--border-default)",
                             background: isSelected ? "var(--text-primary)" : "var(--bg-card)",
@@ -748,12 +750,25 @@ export default function ProductClient({ initialProduct, initialRelated, initialP
                             }
                           }}
                         >
-                          {variantThumb && (
+                          {variantThumb ? (
                             <div style={{ position: "relative", width: 22, height: 22, borderRadius: "50%", overflow: "hidden", border: isSelected ? "1.5px solid white" : "1.5px solid var(--border-default)", flexShrink: 0 }}>
                               <Image src={variantThumb} alt={color} fill sizes="22px" style={{ objectFit: "cover" }} />
                             </div>
+                          ) : (
+                            <span
+                              style={{
+                                width: 18,
+                                height: 18,
+                                borderRadius: "50%",
+                                background: hexColor,
+                                border: isSelected ? "1.5px solid white" : (color.toLowerCase() === "white" || color.toLowerCase() === "#ffffff" ? "1.5px solid #cbd5e1" : "1.5px solid rgba(0,0,0,0.15)"),
+                                display: "inline-block",
+                                flexShrink: 0,
+                                boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)"
+                              }}
+                            />
                           )}
-                          {color}
+                          <span style={{ textTransform: "capitalize" }}>{color}</span>
                         </button>
                       );
                     })}

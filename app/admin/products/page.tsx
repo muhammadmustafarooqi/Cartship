@@ -208,10 +208,19 @@ export default function AdminProductsPage() {
 
   const openEditForm = (product: Product) => {
     setEditingProduct(product);
-    const existingVariants: ColorVariant[] =
-      product.colorVariants && product.colorVariants.length > 0
-        ? product.colorVariants
-        : (product.colors || []).map((c) => ({ color: c, images: [] }));
+    const allUniqueColorNames = Array.from(
+      new Set([
+        ...(product.colors || []),
+        ...(product.colorVariants?.map((cv) => cv.color) || []),
+      ])
+    ).filter(Boolean);
+
+    const existingVariants: ColorVariant[] = allUniqueColorNames.map((cName) => {
+      const match = product.colorVariants?.find(
+        (cv) => cv.color.toLowerCase() === cName.toLowerCase()
+      );
+      return match || { color: cName, images: [] };
+    });
 
     let initialForm = {
       name: product.name,

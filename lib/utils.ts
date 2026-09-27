@@ -158,3 +158,47 @@ export const PRODUCT_COLORS = [
   "Rose Gold",
   "Multicolor",
 ];
+
+// Helper to get hex or CSS color for color swatches
+export function getColorHex(colorName: string): string {
+  if (!colorName) return "#cbd5e1";
+  const normalized = colorName.trim().toLowerCase();
+
+  if (normalized.startsWith("#") || normalized.startsWith("rgb") || normalized.startsWith("hsl") || normalized.startsWith("linear-gradient")) {
+    return colorName;
+  }
+
+  const colorMap: Record<string, string> = {
+    black: "#0f172a",
+    white: "#ffffff",
+    red: "#ef4444",
+    blue: "#3b82f6",
+    green: "#16a34a",
+    yellow: "#eab308",
+    pink: "#ec4899",
+    purple: "#a855f7",
+    orange: "#f97316",
+    gray: "#64748b",
+    grey: "#64748b",
+    silver: "#94a3b8",
+    gold: "#d97706",
+    golden: "#d97706",
+    brown: "#78350f",
+    beige: "#f5f5dc",
+    navy: "#1e3a8a",
+    maroon: "#800000",
+    teal: "#0d9488",
+    mint: "#6ee7b7",
+    "rose gold": "#f43f5e",
+    rose: "#f43f5e",
+    multicolor: "linear-gradient(135deg, #ff0000, #00ff00, #0000ff)",
+    cyan: "#06b6d4",
+    olive: "#65a30d",
+    violet: "#7c3aed",
+    emerald: "#059669",
+    amber: "#d97706",
+  };
+
+  return colorMap[normalized] || normalized;
+}
+

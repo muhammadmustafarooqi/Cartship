@@ -8,6 +8,13 @@ import { useCart } from "./CartProvider";
 import { useWishlist } from "./WishlistProvider";
 import { fbq } from "@/lib/fpq";
 
+import { getColorHex } from "@/lib/utils";
+
+interface ColorVariant {
+  color: string;
+  images: string[];
+}
+
 interface Product {
   _id: string;
   name: string;
@@ -24,6 +31,8 @@ interface Product {
   rating?: number;
   reviewCount?: number;
   stock?: number;
+  colors?: string[];
+  colorVariants?: ColorVariant[];
 }
 
 type MediaMode = "video" | "photos";
@@ -94,10 +103,44 @@ export default function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const wishlisted = isWishlisted(product._id);
 
+  const displayColors = useMemo(() => {
+    return Array.from(
+      new Set([
+        ...(product.colors || []),
+        ...(product.colorVariants?.map((cv) => cv.color) || []),
+      ])
+    ).filter(Boolean);
+  }, [product.colors, product.colorVariants]);
+
+  const [selectedColor, setSelectedColor] = useState<string>(
+    displayColors[0] || ""
+  );
+
+  const activeColorVariant = useMemo(() => {
+    if (!selectedColor) return null;
+    return product.colorVariants?.find(
+      (cv) => cv.color.toLowerCase() === selectedColor.toLowerCase()
+    );
+  }, [product.colorVariants, selectedColor]);
+
+  const activeColorImages =
+    activeColorVariant?.images && activeColorVariant.images.length > 0
+      ? activeColorVariant.images
+      : null;
+
   const discount =
     product.comparePrice && product.comparePrice > product.price
       ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)
       : 0;
+
+  const galleryUrls = useMemo(() => {
+    if (activeColorImages && activeColorImages.length > 0) {
+      return activeColorImages;
+    }
+    const raw = (product.images || []).filter((u) => typeof u === "string" && u.trim().length > 0);
+    if (raw.length > 0) return raw;
+    return [getFallbackImage(product.category, product.name)];
+  }, [activeColorImages, product.images, product.category, product.name]);
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -113,8 +156,9 @@ export default function ProductCard({ product }: { product: Product }) {
       name: product.name,
       price: product.price,
       quantity: 1,
-      image: product.images?.[0] || "",
+      image: galleryUrls[0] || product.images?.[0] || "",
       slug: product.slug,
+      selectedColor: selectedColor || undefined,
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
@@ -123,12 +167,6 @@ export default function ProductCard({ product }: { product: Product }) {
   const rating = product.rating || 4.5;
   const fullStars = Math.floor(rating);
   const isOutOfStock = product.stock !== undefined && product.stock === 0;
-
-  const galleryUrls = useMemo(() => {
-    const raw = (product.images || []).filter((u) => typeof u === "string" && u.trim().length > 0);
-    if (raw.length > 0) return raw;
-    return [getFallbackImage(product.category, product.name)];
-  }, [product.images, product.category, product.name]);
 
   const previewVideoUrl = product.previewVideoUrl?.trim() ?? "";
   const hasVideo =
@@ -390,6 +428,72 @@ export default function ProductCard({ product }: { product: Product }) {
             {product.shortDescription?.trim() ? (
               <p className="pc-desc">{product.shortDescription.trim()}</p>
             ) : null}
+
+            {displayColors.length > 0 && (
+              <div
+                style={{ display: "flex", gap: "6px", alignItems: "center", margin: "6px 0 10px 0", flexWrap: "wrap" }}
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              >
+                {displayColors.slice(0, 5).map((col) => {
+                  const isSel = selectedColor.toLowerCase() === col.toLowerCase();
+                  const cv = product.colorVariants?.find((c) => c.color.toLowerCase() === col.toLowerCase());
+                  const thumb = cv?.images?.[0];
+                  const hex = getColorHex(col);
+
+                  return (
+                    <button
+                      key={col}
+                      type="button"
+                      title={`Select ${col}`}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedColor(col);
+                        setGalleryIndex(0);
+                      }}
+                      style={{
+                        padding: 0,
+                        border: isSel ? "2px solid var(--text-primary)" : "1.5px solid var(--border-default)",
+                        borderRadius: "50%",
+                        background: "none",
+                        cursor: "pointer",
+                        width: "20px",
+                        height: "20px",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        transform: isSel ? "scale(1.15)" : "scale(1)",
+                        transition: "all 0.15s ease",
+                        boxShadow: isSel ? "0 2px 6px rgba(0,0,0,0.15)" : "none"
+                      }}
+                    >
+                      {thumb ? (
+                        <span style={{ width: "16px", height: "16px", borderRadius: "50%", overflow: "hidden", display: "inline-block", position: "relative" }}>
+                          <Image src={thumb} alt={col} fill sizes="16px" style={{ objectFit: "cover" }} />
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            width: "14px",
+                            height: "14px",
+                            borderRadius: "50%",
+                            background: hex,
+                            display: "inline-block",
+                            border: col.toLowerCase() === "white" || col.toLowerCase() === "#ffffff" ? "1px solid #cbd5e1" : "none",
+                            boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)"
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+                {displayColors.length > 5 && (
+                  <span style={{ fontSize: "11px", color: "var(--text-secondary)", fontWeight: 600 }}>
+                    +{displayColors.length - 5}
+                  </span>
+                )}
+              </div>
+            )}
 
             <div className="pc-rating">
               <div className="pc-stars" aria-hidden>
