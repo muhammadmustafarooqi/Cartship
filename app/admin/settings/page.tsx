@@ -337,6 +337,46 @@ export default function AdminSettingsPage() {
             </label>
           </div>
 
+          <div>
+            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2937", marginBottom: "16px", borderBottom: "1px solid #f0f0f0", paddingBottom: "8px" }}>
+              Meta & Social Integrations
+            </h3>
+            <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#0f172a" }}>Meta Product Catalog Feed (XML / RSS)</h4>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+                    Use this feed URL in Meta Commerce Manager to sync your product catalog for Facebook & Instagram Shops and Advantage+ Dynamic Ads.
+                  </p>
+                </div>
+                <span style={{ background: "#dcfce7", color: "#166534", fontSize: "12px", fontWeight: 600, padding: "4px 10px", borderRadius: "9999px" }}>
+                  Active Feed
+                </span>
+              </div>
+              <div style={{ display: "flex", gap: "8px" }}>
+                <input
+                  type="text"
+                  readOnly
+                  value={typeof window !== "undefined" ? `${window.location.origin}/api/feeds/meta` : "/api/feeds/meta"}
+                  style={{ background: "#ffffff", color: "#0f172a", fontFamily: "monospace", fontSize: "13px", cursor: "pointer" }}
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ whiteSpace: "nowrap" }}
+                  onClick={() => {
+                    const url = typeof window !== "undefined" ? `${window.location.origin}/api/feeds/meta` : "/api/feeds/meta";
+                    navigator.clipboard.writeText(url);
+                    toast.success("Meta Feed URL copied to clipboard!");
+                  }}
+                >
+                  Copy URL
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div style={{ borderTop: "1px solid #f0f0f0", paddingTop: "24px", display: "flex", justifyContent: "flex-end" }}>
             <button type="submit" className="btn-primary" disabled={loading} style={{ minWidth: "150px", justifyContent: "center" }}>
               {loading ? "Saving..." : "Save Settings"}
