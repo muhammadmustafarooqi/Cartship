@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+    const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || "936202355839835";
     const capiToken = process.env.META_CAPI_TOKEN;
 
-    if (!pixelId || !capiToken) {
-      return NextResponse.json({ error: "Meta CAPI credentials missing" }, { status: 500 });
+    if (!capiToken) {
+      return NextResponse.json({ error: "Meta CAPI token missing" }, { status: 500 });
     }
 
     const body = await request.json();

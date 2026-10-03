@@ -145,12 +145,21 @@ export default function ProductCard({ product }: { product: Product }) {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    fbq("track", "AddToCart", {
+    const eventID = `atc_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    const customData = {
       content_ids: [product._id],
       content_name: product.name,
       value: product.price,
       currency: "PKR"
-    });
+    };
+    fbq("track", "AddToCart", customData, { eventID });
+    if (typeof window !== "undefined") {
+      fetch("/api/capi", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventName: "AddToCart", eventID, customData, sourceUrl: window.location.href })
+      }).catch(console.error);
+    }
     addItem({
       productId: product._id,
       name: product.name,

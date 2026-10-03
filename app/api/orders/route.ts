@@ -240,10 +240,10 @@ export async function POST(request: NextRequest) {
 
     // --- Meta Conversions API (CAPI) Integration ---
     try {
-      const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID;
+      const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || "936202355839835";
       const capiToken = process.env.META_CAPI_TOKEN;
       
-      if (pixelId && capiToken) {
+      if (capiToken) {
         const hashData = (data: string) => crypto.createHash("sha256").update(data).digest("hex");
         
         let hashedPhone = "";
@@ -254,6 +254,24 @@ export async function POST(request: NextRequest) {
             cleanPhone = "92" + cleanPhone.substring(1);
           }
           hashedPhone = hashData(cleanPhone);
+        }
+
+        const cleanCity = body.city ? body.city.toLowerCase().trim().replace(/[^a-z]/g, "") : "";
+        const hashedCity = cleanCity ? hashData(cleanCity) : "";
+        const hashedCountry = hashData("pk");
+
+        let hashedFirstName = "";
+        let hashedLastName = "";
+        if (body.customerName) {
+          const parts = body.customerName.trim().split(/\s+/);
+          if (parts[0]) hashedFirstName = hashData(parts[0].toLowerCase());
+          if (parts.length > 1) hashedLastName = hashData(parts.slice(1).join(" ").toLowerCase());
+        }
+
+        let hashedEmail = "";
+        const userEmail = body.email || authSession?.user?.email;
+        if (userEmail) {
+          hashedEmail = hashData(userEmail.toLowerCase().trim());
         }
 
         const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0] || request.headers.get("x-real-ip") || "";
@@ -270,6 +288,11 @@ export async function POST(request: NextRequest) {
                 client_ip_address: clientIp,
                 client_user_agent: userAgent,
                 ...(hashedPhone ? { ph: [hashedPhone] } : {}),
+                ...(hashedEmail ? { em: [hashedEmail] } : {}),
+                ...(hashedFirstName ? { fn: [hashedFirstName] } : {}),
+                ...(hashedLastName ? { ln: [hashedLastName] } : {}),
+                ...(hashedCity ? { ct: [hashedCity] } : {}),
+                country: [hashedCountry],
               },
               custom_data: {
                 currency: "PKR",
