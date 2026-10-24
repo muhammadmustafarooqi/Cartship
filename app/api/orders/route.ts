@@ -240,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     // --- Meta Conversions API (CAPI) Integration ---
     try {
-      const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || "936202355839835";
+      const pixelId = process.env.NEXT_PUBLIC_META_PIXEL_ID || "1074785018742146";
       const capiToken = process.env.META_CAPI_TOKEN;
       
       if (capiToken) {

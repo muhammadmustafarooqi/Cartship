@@ -4,7 +4,7 @@ import { useEffect, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import Script from "next/script";
 
-const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || "936202355839835";
+const PIXEL_ID = process.env.NEXT_PUBLIC_META_PIXEL_ID || "1074785018742146";
 
 function PixelEvents() {
   const pathname = usePathname();
