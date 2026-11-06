@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
@@ -77,13 +78,29 @@ export async function generateMetadata(): Promise<Metadata> {
       description: "Top quality gadgets, kitchen tools & personal care devices. COD available across Pakistan.",
     },
     alternates: { canonical: SITE_URL },
+    other: {
+      ...(process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID
+        ? { "google-adsense-account": process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID }
+        : {}),
+    },
   };
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
+
   return (
     <html lang="en" suppressHydrationWarning className={`${jakarta.variable} ${outfit.variable}`}>
       <body className={jakarta.className} suppressHydrationWarning>
+        {adsenseClientId && (
+          <Script
+            id="google-adsense"
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        )}
         <StarterLoader />
         <AppSessionProvider>
           <CartProvider>

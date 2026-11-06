@@ -6,6 +6,7 @@ import Settings from "@/models/Settings";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnnouncementBar from "@/components/AnnouncementBar";
+import AdSlot from "@/components/AdSlot";
 import { 
   ShieldCheck, 
   FileText, 
@@ -28,38 +29,64 @@ export const revalidate = 60;
 const DEFAULT_PAGES: Record<string, { title: string; subtitle: string; icon: string; content: string }> = {
   "privacy-policy": {
     title: "Privacy Policy",
-    subtitle: "How CartShip collects, protects, and handles your personal data responsibly.",
+    subtitle: "Protecting our visitors' privacy and our commitment to transparent data & advertising practices.",
     icon: "shield",
     content: `
-      <h2>1. Introduction</h2>
-      <p>At CartShip (cartship.pk), we are dedicated to protecting your personal information and ensuring a transparent, secure online shopping environment. This Privacy Policy details how we collect, store, and process your data across Pakistan.</p>
+      <p><strong>Last Updated:</strong> November 4, 2026</p>
 
-      <h2>2. Information We Collect</h2>
-      <p>To provide a smooth order fulfillment and delivery experience, we collect necessary customer details during checkout, registration, or interaction:</p>
+      <p>At <strong>CartShip</strong> (accessible from <a href="https://cartship.pk">https://cartship.pk</a>), protecting our visitors' privacy is one of our main priorities. This Privacy Policy explains what information may be collected, how it is used, and how third-party advertising services operate on our website.</p>
+
+      <h2>1. Information We Collect</h2>
+      <p>We may collect information such as your browser type, device information, IP address, pages visited, and other usage information when you visit our website. If you contact us or place an order, we may also receive the information you voluntarily provide (such as your name, delivery address, phone number, and email).</p>
+
+      <h2>2. Cookies and Web Beacons</h2>
+      <p>Our website may use cookies and similar technologies to improve the browsing experience, remember shopping cart items, understand website traffic, and display advertisements.</p>
+      <p>Cookies are small files stored on your device that help websites recognize browsers and remember certain information.</p>
+
+      <h2>3. Google AdSense and Third-Party Advertising</h2>
+      <p>We may use Google AdSense to display advertisements on our website. Google and other third-party advertising providers may use cookies, web beacons, IP addresses, or similar technologies to collect information when advertisements are displayed.</p>
+      <p>This information may be used to provide, measure, and personalize advertisements, subject to your applicable privacy settings and consent choices.</p>
+      <p>For more information about how Google uses information from websites that use its services, please visit:</p>
+      <p><a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener noreferrer">https://policies.google.com/technologies/partner-sites</a></p>
+      <p>You can learn more about Google's advertising practices here:</p>
+      <p><a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer">https://policies.google.com/technologies/ads</a></p>
+
+      <h2>4. Third-Party Privacy Policies</h2>
+      <p>Our website may contain advertisements or links to third-party websites. These websites have their own privacy policies and practices. We encourage visitors to review the privacy policies of any third-party services they use.</p>
+
+      <h2>5. How We Use Information</h2>
+      <p>We may use collected information to:</p>
       <ul>
-        <li><strong>Contact Information:</strong> Full Name, active Mobile / WhatsApp phone number, and email address.</li>
-        <li><strong>Shipping Information:</strong> Complete delivery address, street details, landmark, and destination city.</li>
-        <li><strong>Order & Transaction Data:</strong> Purchased products, Cash-on-Delivery (COD) records, discount vouchers, and order history.</li>
-        <li><strong>Device & Analytics:</strong> IP address, device type, browser settings, and anonymized interaction cookies to optimize site speed.</li>
+        <li>Operate and maintain our website.</li>
+        <li>Fulfill Cash on Delivery (COD) orders and coordinate delivery with couriers.</li>
+        <li>Improve website performance and user experience.</li>
+        <li>Understand visitor activity and website traffic.</li>
+        <li>Display and measure advertisements.</li>
+        <li>Protect our website against fraud, abuse, and security threats.</li>
       </ul>
 
-      <h2>3. How We Use Your Data</h2>
-      <p>Your information is used strictly for legitimate e-commerce operations, including:</p>
+      <h2>6. Your Privacy Choices</h2>
+      <p>You may be able to manage cookies through your browser settings and control personalized advertising through your Google Account's ad settings.</p>
+      <p>Where required by applicable law, we will provide appropriate consent choices and respect users' applicable privacy rights.</p>
+
+      <h2>7. Children's Privacy</h2>
+      <p>Our website does not knowingly collect personal information from children in violation of applicable privacy laws. If you believe a child has provided personal information improperly, please contact us so that we can review the matter.</p>
+
+      <h2>8. Data Security</h2>
+      <p>We take reasonable measures to protect information associated with our website. However, no method of transmission or electronic storage can be guaranteed to be completely secure.</p>
+
+      <h2>9. Changes to This Privacy Policy</h2>
+      <p>We may update this Privacy Policy from time to time. Any changes will be published on this page, together with an updated revision date.</p>
+
+      <h2>10. Contact Us</h2>
+      <p>If you have any questions about this Privacy Policy, please contact us:</p>
       <ul>
-        <li>Processing and dispatching your Cash on Delivery (COD) orders via our courier partners (TCS, Trax, Leopards, Call Courier).</li>
-        <li>Sending order confirmation SMS, WhatsApp delivery status notifications, and verification OTPs.</li>
-        <li>Providing dedicated customer care and addressing exchange / replacement inquiries.</li>
-        <li>Preventing fraudulent orders and improving our product catalog.</li>
+        <li><strong>Website Name:</strong> CartShip</li>
+        <li><strong>Website URL:</strong> <a href="https://cartship.pk">https://cartship.pk</a></li>
+        <li><strong>Email:</strong> support@cartship.pk</li>
+        <li><strong>Phone:</strong> +92 300 1234567</li>
       </ul>
-
-      <h2>4. Data Protection & Security</h2>
-      <p>We enforce strict SSL encryption (HTTPS) across our entire web platform. We never sell, rent, or lease your personal information to third-party marketers. Your data is only shared with authorized logistics couriers strictly for delivering your parcel.</p>
-
-      <h2>5. Cookies & Tracking Technologies</h2>
-      <p>We utilize essential cookies and Meta Pixel tracking to remember your cart items, apply your Spin-to-Win discounts, and deliver relevant promotions. You can manage cookie preferences directly through your browser settings.</p>
-
-      <h2>6. Your Rights & Contact</h2>
-      <p>You have the right to request a review, update, or deletion of your personal records stored with us. For inquiries or data requests, please reach out to our team at <strong>support@cartship.pk</strong> or message our official WhatsApp helpline.</p>
+      <p>By using our website, you acknowledge that you have read this Privacy Policy.</p>
     `,
   },
   "terms-of-service": {
@@ -454,6 +481,9 @@ export default async function CustomPage({
               className="static-page-content"
               dangerouslySetInnerHTML={{ __html: pageContent }}
             />
+
+            {/* AdSlot Banner */}
+            <AdSlot adFormat="horizontal" />
 
             {/* Dedicated Dynamic Contact Cards for contact-us page */}
             {normalizedSlug === "contact-us" && (

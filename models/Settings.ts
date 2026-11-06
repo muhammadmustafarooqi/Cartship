@@ -226,9 +226,9 @@ const SettingsSchema = new Schema<ISettings>(
           },
         ],
         default: [
-          { label: "Privacy Policy", href: "#" },
-          { label: "Terms of Service", href: "#" },
-          { label: "Return Policy", href: "#" },
+          { label: "Privacy Policy", href: "/pages/privacy-policy" },
+          { label: "Terms of Service", href: "/pages/terms-of-service" },
+          { label: "Return Policy", href: "/pages/return-refund-policy" },
         ],
       },
       codMessage: {

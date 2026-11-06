@@ -13,6 +13,7 @@ import WhatsAppCTA from "@/components/WhatsAppCTA";
 import ScratchCardBanner from "@/components/ScratchCardBanner";
 import DeliveryProofWall from "@/components/DeliveryProofWall";
 import FeaturedCollection from "@/components/FeaturedCollection";
+import AdSlot from "@/components/AdSlot";
 import { LucideByName } from "@/components/LucideByName";
 import Link from "next/link";
 import connectDB from "@/lib/mongodb";
@@ -79,6 +80,11 @@ export default async function HomePage() {
       <CategoryShowcase />
 
       <FeaturedCollection products={featuredProducts} />
+
+      {/* AdSense Placement */}
+      <div className="page-container" style={{ margin: "20px auto" }}>
+        <AdSlot adFormat="horizontal" />
+      </div>
 
       {/* Scratch Card Banner */}
       <ScratchCardBanner />

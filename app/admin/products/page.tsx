@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, Upload, Package, Star, Sparkles, Eye, FileText } from "lucide-react";
+import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, Upload, Package, Star, Sparkles, Eye, FileText, Download, FileSpreadsheet, CheckCircle2, AlertCircle } from "lucide-react";
 import { PRODUCT_CATEGORIES, PRODUCT_COLORS } from "@/lib/utils";
 import toast from "react-hot-toast";
 import { useDraft } from "@/lib/useDraft";
@@ -67,6 +67,20 @@ export default function AdminProductsPage() {
   const [uploadingColor, setUploadingColor] = useState<string | null>(null);
   const [colorImageUrlMap, setColorImageUrlMap] = useState<Record<string, string>>({});
   const [persistedNewDraft, setPersistedNewDraft] = useState<{ data: typeof EMPTY_PRODUCT; savedAt: string } | null>(null);
+
+  // Import / Export state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreviewCount, setImportPreviewCount] = useState<number | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [updateExisting, setUpdateExisting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importResult, setImportResult] = useState<{
+    createdCount: number;
+    updatedCount: number;
+    skippedCount: number;
+    errors: Array<{ row: number; error: string }>;
+  } | null>(null);
 
   const draftKey = editingProduct
     ? `cartship_admin_draft_product_edit_${editingProduct._id}`
@@ -194,6 +208,105 @@ export default function AdminProductsPage() {
   useEffect(() => {
     fetchProducts();
   }, [fetchProducts]);
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    const toastId = toast.loading("Exporting products to CSV...");
+    try {
+      const res = await fetch("/api/admin/products/export");
+      if (!res.ok) throw new Error("Export failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cartship-products-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Products exported successfully!", { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Failed to export", { id: toastId });
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleDownloadTemplate = async () => {
+    try {
+      const res = await fetch("/api/admin/products/template");
+      if (!res.ok) throw new Error("Template download failed");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "cartship-products-sample-template.csv";
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Sample template downloaded!");
+    } catch (err: any) {
+      toast.error("Failed to download template");
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImportFile(file);
+    setImportResult(null);
+
+    try {
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+      const estimatedRows = Math.max(0, lines.length - 1);
+      setImportPreviewCount(estimatedRows);
+    } catch {
+      setImportPreviewCount(null);
+    }
+  };
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!importFile) {
+      toast.error("Please select a CSV file first");
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+    const toastId = toast.loading("Importing products...");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", importFile);
+      formData.append("updateExisting", String(updateExisting));
+
+      const res = await fetch("/api/admin/products/import", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to import products");
+      }
+
+      setImportResult(data);
+      toast.success(
+        `Import complete! ${data.createdCount} created, ${data.updatedCount} updated.`,
+        { id: toastId }
+      );
+      fetchProducts();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Import failed", { id: toastId });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const openAddForm = () => {
     setEditingProduct(null);
@@ -641,9 +754,48 @@ export default function AdminProductsPage() {
           <h1 style={{ fontSize: "28px", fontWeight: 800, color: "#1f2937" }}>Products</h1>
           <p style={{ color: "#6b7280", marginTop: "4px" }}>{activeProducts.length} active · {inactiveProducts.length} inactive</p>
         </div>
-        <button onClick={openAddForm} className="btn-primary">
-          <Plus size={18} /> Add New Product
-        </button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            disabled={exporting || products.length === 0}
+            className="btn-secondary"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
+              fontSize: "14px",
+              cursor: exporting || products.length === 0 ? "not-allowed" : "pointer",
+              opacity: exporting || products.length === 0 ? 0.6 : 1,
+            }}
+            title="Export all products to a CSV spreadsheet"
+          >
+            <Download size={16} /> {exporting ? "Exporting..." : "Export CSV"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowImportModal(true);
+              setImportResult(null);
+            }}
+            className="btn-secondary"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "10px 16px",
+              fontSize: "14px",
+              cursor: "pointer",
+            }}
+            title="Bulk import products from CSV (Daraz / Excel)"
+          >
+            <FileSpreadsheet size={16} /> Import CSV
+          </button>
+          <button onClick={openAddForm} className="btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+            <Plus size={18} /> Add New Product
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -1189,6 +1341,213 @@ export default function AdminProductsPage() {
                 <button type="button" onClick={() => setShowForm(false)} className="btn-secondary" style={{ flex: "1 1 auto", minWidth: "120px" }}>Cancel</button>
                 <button type="submit" className="btn-primary" disabled={submitting} style={{ flex: "1 1 auto", minWidth: "120px" }}>
                   {submitting ? "Saving..." : editingProduct ? "Update Product" : "Create Product"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showImportModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.7)",
+            backdropFilter: "blur(4px)",
+            zIndex: 9999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflowY: "auto",
+            padding: "24px 16px",
+          }}
+          onClick={() => !importing && setShowImportModal(false)}
+        >
+          <div
+            style={{
+              background: "#ffffff",
+              borderRadius: "24px",
+              padding: "36px",
+              width: "100%",
+              maxWidth: "680px",
+              position: "relative",
+              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+              <div>
+                <h2 style={{ fontSize: "20px", fontWeight: 800, color: "#1f2937", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <FileSpreadsheet size={22} color="var(--orange)" /> Bulk Import Products
+                </h2>
+                <p style={{ color: "#6b7280", fontSize: "13px", marginTop: "2px" }}>
+                  Import products in bulk from a CSV spreadsheet (Daraz, Shopify, or Excel).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !importing && setShowImportModal(false)}
+                style={{
+                  background: "#f3f4f6",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "36px",
+                  height: "36px",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#6b7280",
+                }}
+                disabled={importing}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Template Download & Guide Bar */}
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "16px",
+                marginBottom: "20px",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#0f172a" }}>Need the standard CSV format?</span>
+                <button
+                  type="button"
+                  onClick={handleDownloadTemplate}
+                  className="btn-secondary"
+                  style={{
+                    padding: "6px 14px",
+                    fontSize: "12px",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontWeight: 700,
+                  }}
+                >
+                  <Download size={14} /> Download Sample Template
+                </button>
+              </div>
+              <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "12px", color: "#475569", lineHeight: "1.6" }}>
+                <li><strong>Multiple Images:</strong> Put multiple image URLs separated by comma <code>,</code> or pipe <code>|</code> in the <em>Images</em> column.</li>
+                <li><strong>Prices:</strong> Supports formats like <code>2499</code>, <code>Rs. 2,499</code>, or <code>PKR 2500</code>.</li>
+                <li><strong>Categories:</strong> Auto-matched to existing categories or cleanly slugified.</li>
+              </ul>
+            </div>
+
+            <form onSubmit={handleImportSubmit}>
+              {/* File upload zone */}
+              <div
+                style={{
+                  border: "2px dashed " + (importFile ? "var(--orange)" : "#cbd5e1"),
+                  background: importFile ? "rgba(255, 107, 0, 0.03)" : "#f8fafc",
+                  borderRadius: "12px",
+                  padding: "30px 20px",
+                  textAlign: "center",
+                  cursor: "pointer",
+                  marginBottom: "20px",
+                  transition: "all 0.2s",
+                }}
+                onClick={() => document.getElementById("csv-file-input")?.click()}
+              >
+                <input
+                  id="csv-file-input"
+                  type="file"
+                  accept=".csv,text/csv"
+                  onChange={handleFileChange}
+                  style={{ display: "none" }}
+                  disabled={importing}
+                />
+                <div style={{ width: "48px", height: "48px", borderRadius: "50%", background: "#ffedd5", color: "var(--orange)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                  <Upload size={22} />
+                </div>
+                {importFile ? (
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#1f2937", fontSize: "14px" }}>{importFile.name}</div>
+                    <div style={{ color: "#10b981", fontSize: "12px", marginTop: "4px", fontWeight: 600 }}>
+                      {importPreviewCount !== null ? `~${importPreviewCount} products detected` : "File ready to upload"}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ fontWeight: 700, color: "#374151", fontSize: "14px" }}>Click to select your CSV file</div>
+                    <div style={{ color: "#9ca3af", fontSize: "12px", marginTop: "4px" }}>Supports standard UTF-8 CSV exports</div>
+                  </div>
+                )}
+              </div>
+
+              {/* Options */}
+              <div style={{ marginBottom: "20px" }}>
+                <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: "#374151" }}>
+                  <input
+                    type="checkbox"
+                    checked={updateExisting}
+                    onChange={(e) => setUpdateExisting(e.target.checked)}
+                    disabled={importing}
+                    style={{ width: "16px", height: "16px", accentColor: "var(--orange)" }}
+                  />
+                  <span><strong>Update existing products</strong> if matching name or slug is found</span>
+                </label>
+              </div>
+
+              {/* Import Results Banner */}
+              {importResult && (
+                <div
+                  style={{
+                    background: importResult.createdCount > 0 || importResult.updatedCount > 0 ? "#f0fdf4" : "#fff1f2",
+                    border: "1px solid " + (importResult.createdCount > 0 || importResult.updatedCount > 0 ? "#bbf7d0" : "#fecdd3"),
+                    borderRadius: "10px",
+                    padding: "14px 16px",
+                    marginBottom: "20px",
+                    fontSize: "13px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontWeight: 700, color: "#166534" }}>
+                    <CheckCircle2 size={16} /> Import Summary:
+                  </div>
+                  <div style={{ marginTop: "6px", color: "#374151" }}>
+                    • Created: <strong>{importResult.createdCount}</strong> new products<br />
+                    • Updated: <strong>{importResult.updatedCount}</strong> existing products<br />
+                    {importResult.skippedCount > 0 && (
+                      <span style={{ color: "#b91c1c" }}>• Skipped: {importResult.skippedCount} rows with errors<br /></span>
+                    )}
+                  </div>
+                  {importResult.errors && importResult.errors.length > 0 && (
+                    <div style={{ marginTop: "8px", maxHeight: "100px", overflowY: "auto", fontSize: "11px", color: "#991b1b" }}>
+                      {importResult.errors.map((err, idx) => (
+                        <div key={idx}>Row {err.row}: {err.error}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowImportModal(false)}
+                  className="btn-secondary"
+                  disabled={importing}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary"
+                  disabled={!importFile || importing}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}
+                >
+                  {importing ? "Importing..." : "Start Import"}
                 </button>
               </div>
             </form>
