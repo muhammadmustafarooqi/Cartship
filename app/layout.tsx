@@ -29,7 +29,7 @@ const outfit = Outfit({
   variable: "--font-outfit"
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://cartship.pk";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.cartship.pk").replace(/\/$/, "");
 
 export async function generateMetadata(): Promise<Metadata> {
   let favicon = FAVICON_URL;
@@ -89,8 +89,49 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
 
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "CartShip",
+    url: SITE_URL,
+    logo: `${SITE_URL}/CartShip.png`,
+    sameAs: [
+      "https://www.facebook.com/cartship.pk",
+      "https://www.instagram.com/cartship.pk",
+    ],
+  };
+
+  const websiteJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "CartShip",
+    url: SITE_URL,
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${SITE_URL}/products?search={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  };
+
   return (
     <html lang="en" suppressHydrationWarning className={`${jakarta.variable} ${outfit.variable}`}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(organizationJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify(websiteJsonLd).replace(/</g, "\\u003c"),
+          }}
+        />
+      </head>
       <body className={jakarta.className} suppressHydrationWarning>
         {adsenseClientId && (
           <Script

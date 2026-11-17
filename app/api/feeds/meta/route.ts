@@ -13,16 +13,20 @@ function stripHtml(html: string) {
   return html.replace(/<[^>]*>?/gm, "").trim();
 }
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
 
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://cartship.pk").replace(/\/$/, "");
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.cartship.pk").replace(/\/$/, "");
     
     // Get store settings if present
-    const settings = await Settings.findOne().lean();
+    const settings = (await Settings.findOne().lean()) as any;
     const storeName = settings?.storeName || "CartShip";
     const storeDescription = "Premium Gadgets & Accessories Pakistan";
+    const freeDeliveryAbove = typeof settings?.freeDeliveryAbove === "number" ? settings.freeDeliveryAbove : 3000;
+    const standardDeliveryFee = typeof settings?.deliveryFee === "number" ? settings.deliveryFee : 199;
 
     // Fetch active products
     const products = await Product.find({ isActive: true }).sort({ createdAt: -1 }).lean();
@@ -41,13 +45,13 @@ export async function GET(request: NextRequest) {
           image_link: p.images?.[0] || "",
           price: `${p.price} PKR`,
           compare_at_price: p.comparePrice ? `${p.comparePrice} PKR` : null,
-          availability: p.stock > 0 ? "in stock" : "out of stock",
+          availability: (p.stock ?? 1) > 0 ? "in stock" : "out of stock",
           category: p.category,
         })),
       });
     }
 
-    // Default RSS 2.0 XML Catalog Feed for Meta Commerce Manager & Google Shopping
+    // RSS 2.0 XML Catalog Feed for Meta Commerce Manager & Google Shopping
     const itemsXml = products
       .map((product: any) => {
         const productUrl = `${siteUrl}/products/${product.slug}`;
@@ -58,9 +62,10 @@ export async function GET(request: NextRequest) {
         const priceStr = isSale ? `${product.comparePrice} PKR` : `${product.price} PKR`;
         const salePriceStr = isSale ? `${product.price} PKR` : "";
 
-        const availability = product.stock > 0 ? "in stock" : "out of stock";
+        const availability = (product.stock ?? 1) > 0 ? "in stock" : "out of stock";
         const descText = cleanCdata(stripHtml(product.shortDescription || product.description || product.name));
         const titleText = cleanCdata(product.name);
+        const shippingFee = product.price >= freeDeliveryAbove ? 0 : standardDeliveryFee;
 
         const additionalImageTags = additionalImages
           .filter((imgUrl: string) => Boolean(imgUrl))
@@ -80,6 +85,12 @@ export async function GET(request: NextRequest) {
       <g:price>${priceStr}</g:price>
       ${salePriceStr ? `<g:sale_price>${salePriceStr}</g:sale_price>` : ""}
       <g:product_type><![CDATA[${product.category || "General"}]]></g:product_type>
+      <g:identifier_exists>no</g:identifier_exists>
+      <g:shipping>
+        <g:country>PK</g:country>
+        <g:service>Standard Delivery</g:service>
+        <g:price>${shippingFee} PKR</g:price>
+      </g:shipping>
     </item>`;
       })
       .join("\n");
